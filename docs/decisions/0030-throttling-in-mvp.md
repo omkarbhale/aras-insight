@@ -20,9 +20,9 @@ Throttling is in the MVP. The Throttle, inside the Tool Gateway, enforces per-us
 
 ## Consequences
 
-- Limits must be sized per installation and monitored ([deployment and operations](../architecture/deployment-and-operations.md#sizing-considerations)).
+- Limits must be sized per installation and monitored. The defaults are starting points for a pilot of up to 25 active users, replaced with measurements from the installation ([deployment and operations](../architecture/deployment-and-operations.md#sizing-considerations)).
 - Some answers will be partial under load, and say so.
-- Read queries are not expected to take item locks in Aras (to verify per version); the main concern is load, which this bounds.
+- Read queries are not expected to take item locks in Aras. That is one of the documented manual checks that the customer's Aras owners confirm per version ([ADR 0040](0040-operator-reports-without-administrator-endpoints.md)); the main concern is load, which this bounds.
 
 ## Related
 

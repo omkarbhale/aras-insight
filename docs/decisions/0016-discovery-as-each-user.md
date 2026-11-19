@@ -22,10 +22,10 @@ Discovery runs as each user, with that user's credentials, through the Tool Gate
 ## Consequences
 
 - No new privileged identity.
-- Different users could, in principle, see different configuration. How the discovered layer handles this is owned by [discovery.md](../specs/discovery.md); a proposal is in [security and permissions](../architecture/security-and-permissions.md#the-user-level-access-guarantee).
-- That configuration is readable by ordinary users must be verified per Aras version ([deployment and operations](../architecture/deployment-and-operations.md#aras-version-compatibility-to-verify)).
-- Changes are detected at the next check rather than instantly; there is no deployment hook ([ADR 0019](0019-invalidation-by-provenance-and-contradiction.md)).
+- Different users could, in principle, see different configuration. The discovered configuration is stored once and served to everyone, so a user may learn that a restricted item type exists, though querying it still fails in Aras as that user ([ADR 0036](0036-one-shared-discovered-configuration.md), [discovery.md](../specs/discovery.md), [security and permissions](../architecture/security-and-permissions.md#the-user-level-access-guarantee)).
+- That ordinary users can read configuration is exercised by the compatibility check run once per installation ([deployment and operations](../architecture/deployment-and-operations.md#aras-version-compatibility-to-verify), [ADR 0040](0040-operator-reports-without-administrator-endpoints.md)).
+- Changes are detected at the next check rather than instantly; there is no deployment hook and no manual trigger ([ADR 0019](0019-invalidation-by-provenance-and-contradiction.md)).
 
 ## Related
 
-[Discovery](../specs/discovery.md), [ADR 0004](0004-discovery-only-schema.md).
+[Discovery](../specs/discovery.md), [ADR 0004](0004-discovery-only-schema.md), [ADR 0036](0036-one-shared-discovered-configuration.md), [ADR 0049](0049-discovery-operation.md).

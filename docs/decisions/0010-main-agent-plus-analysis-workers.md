@@ -5,7 +5,7 @@
 
 ## Context
 
-Questions vary from "show my open change requests" to "compare the markup process with the standard workflow across six months of runs". A single agent doing everything would either be slow and expensive for simple questions (spinning up a Sandbox each time) or would drag bulk data into its conversation context for complex ones.
+Questions vary from "show my open change requests" to "compare the design review process with its defined workflow across six months of runs". A single agent doing everything would either be slow and expensive for simple questions (spinning up a Sandbox each time) or would drag bulk data into its conversation context for complex ones.
 
 ## Decision
 
@@ -25,8 +25,9 @@ A Main Agent holds the conversation. It answers simple lookups directly through 
 - The Main Agent's context stays focused on the conversation; bulk data stays in the Sandbox.
 - The Main Agent must write good bounded job descriptions; the job description is the contract.
 - Worker reports have a fixed shape so the Main Agent can compose them without recomputation.
-- Parallel workers share the conversation's Sandbox and its Throttle budget.
+- Parallel workers share the conversation's Sandbox and draw on the turn's question budget; each worker has a share of it.
+- Running several workers in parallel for multi-part questions is a core capability ([ADR 0053](0053-core-capabilities.md)). The number of parallel workers is configurable, so setting it to one gives sequential behaviour.
 
 ## Related
 
-[Main Agent](../specs/main-agent.md), [Analysis Worker and Sandbox](../specs/analysis-worker-and-sandbox.md), [question lifecycle](../architecture/question-lifecycle.md).
+[Main Agent](../specs/main-agent.md), [Analysis Worker and Sandbox](../specs/analysis-worker-and-sandbox.md), [question lifecycle](../architecture/question-lifecycle.md), [ADR 0053](0053-core-capabilities.md).

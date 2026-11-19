@@ -24,7 +24,8 @@ The MVP targets business end users across all roles (managers, executives, engin
 - The product must hide the data model: users never need to know item type or property names. This makes discovery and learned definitions essential ([ADR 0004](0004-discovery-only-schema.md), [ADR 0017](0017-three-knowledge-layers.md)).
 - Missing definitions are resolved with the user in their own vocabulary ([ADR 0028](0028-ask-before-expensive-analysis.md)).
 - Developer and administrator features are deferred (see [roadmap](../product/roadmap.md)).
+- Operations tooling for the customer's infrastructure staff is outside this deferral: audit and usage reports (documented database views and an export) and a one-time compatibility check are provided, while administrator endpoints, a manual discovery trigger and administrator control of other users' jobs are not ([ADR 0040](0040-operator-reports-without-administrator-endpoints.md)).
 
 ## Related
 
-[Personas and use cases](../product/personas-and-use-cases.md).
+[Personas and use cases](../product/personas-and-use-cases.md), [ADR 0040](0040-operator-reports-without-administrator-endpoints.md).

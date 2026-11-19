@@ -15,7 +15,7 @@ The model writes AML directly. Our code does not generate AML on the model's beh
 
 | Alternative | Why rejected |
 | --- | --- |
-| Structured query form compiled by our code (the model fills fields; our code emits AML) | Every AML capability the form lacks becomes a product limitation and a backlog item. The form becomes a second query language to design, document, and keep in step with Aras. A competent model can write the real language, and static analysis catches its mistakes. |
+| Structured query form compiled by our code (the model fills fields; our code emits AML) | Every AML capability the form lacks becomes a product limitation. The form becomes a second query language to design, document, and keep in step with Aras. A competent model can write the real language, and static analysis catches its mistakes. |
 | SQL-to-AML translation (the model writes SQL, which is translated) | Models know SQL well, but Aras's data model is not relational in the way SQL assumes (generations, relationships as items, server events). A faithful translator is a significant project, and anything it cannot translate is lost. Kept open as a possibility only if it preserves permissions. |
 | SQL against the database | Bypasses Aras permissions ([ADR 0005](0005-user-level-access-through-aras-server.md)). |
 
@@ -25,6 +25,7 @@ The model writes AML directly. Our code does not generate AML on the model's beh
 - Model mistakes are expected and handled by static analysis and retry, not by restricting the language.
 - Quality depends on the model and on the AML product skill; the product targets capable models ([ADR 0026](0026-three-model-slots.md)).
 - Every query is an auditable artefact in the language Aras administrators already know.
+- The SQL path is tied to the roadmap item for an analytics path that does not load production. It is reconsidered under that item's condition: production load nears agreed limits despite throttling, or analytical questions regularly hit row budgets, and a way to preserve user-level access is demonstrated (see [roadmap](../product/roadmap.md)).
 
 ## Related
 

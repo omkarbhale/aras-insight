@@ -8,9 +8,9 @@ Answers for business leaders, IT, security, and engineering leadership evaluatin
 
 No. Simple lookups do run as a single AML query, but analytical questions are handled by Analysis Workers. A worker fetches the specific records it needs (for example change orders in a period and their affected items) into an isolated Sandbox, then computes counts, rankings, trends, and durations with Python. Every query is checked before it runs, and unbounded select-all queries are flagged as too expensive. See [question lifecycle](../architecture/question-lifecycle.md).
 
-### Can it answer analytical questions over time, such as which components are most associated with delayed changes, and what the linked reports say about them?
+### Can it answer analytical questions over time, such as which parts appear most often on change orders that finished late, and what the linked engineering reports say went wrong with them?
 
-Yes. The agent first settles what "delayed" means (asking one short question with a suggested definition, since the analysis is expensive), computes the ranking with code, then reads the reports linked to the top components and summarises the failure modes they describe, with citations. It reports association, not cause, and states its coverage. See [personas and use cases](../product/personas-and-use-cases.md).
+Yes. The agent first settles what "late" means (asking one short question with a suggested definition, since the analysis is expensive), computes the ranking with code, then reads the reports linked to the top parts and summarises the failure modes they describe, with citations. It reports association, not cause, and states its coverage. See [personas and use cases](../product/personas-and-use-cases.md).
 
 ### Without a vector index, how does it answer "why" questions when the answer is not in a metadata field?
 
@@ -26,7 +26,7 @@ It combines them in one answer. The agent queries records through AML and reads 
 
 ### Which file formats can it read?
 
-PDFs with a text layer, Word, Excel, PowerPoint, and plain text formats (txt, csv, html, xml). Scanned documents, images, and email files are not read in the MVP; when an answer would have depended on them, its coverage lists them as unreadable. OCR and further formats are on the [roadmap](../product/roadmap.md).
+PDFs with a text layer, Word (.docx), Excel (.xlsx), PowerPoint (.pptx), and plain text formats (txt, csv, html, xml). Scanned documents, images, email files, and the older binary Office formats (.doc, .xls, .ppt) are not read in the MVP; when an answer would have depended on them, its coverage lists them as unreadable. OCR and further formats are on the [roadmap](../product/roadmap.md).
 
 ### Can it do process mining?
 
@@ -34,11 +34,11 @@ Yes, within Aras. It compares the discovered workflow and lifecycle definitions 
 
 ### Does it understand our customised installation?
 
-It discovers the configuration automatically (item types, properties, relationships, lists, workflow and lifecycle maps, methods, forms) as each user, and learns what local terms and processes mean from conversations. Nothing is configured by hand per installation. See [knowledge and learning](../specs/knowledge-and-learning.md).
+It discovers the configuration automatically (item types, properties, relationships, lists, workflow and lifecycle maps, methods, forms) as each user, and learns what local terms and processes mean from conversations. No schema or data-model mapping is configured by hand per installation; deployment settings such as the Aras address, limits, and model endpoints still are. See [knowledge and learning](../specs/knowledge-and-learning.md).
 
 ### What does it learn, and can it learn something wrong?
 
-It learns how the installation works (what a term means, which property holds what, how a process runs), never business data values. It learns only from conversations with a signal: a correction, a retried question, an empty result, or explicit teaching. Every learned entry has provenance. Until someone other than the teacher confirms it, the agent states it as an assumption. A correction on an answer that used it makes it uncertain; disagreement between users makes it contested, and the agent asks which meaning is intended. Entries that depend on configuration that changes are re-derived, marked uncertain, or retired.
+It learns how the installation works (what a term means, which property holds what, how a process runs), never business data values. In the MVP this rule is enforced by the prompts and the shipped product skill, not by an automated audit; see [risks](risks.md). It learns only from conversations with a signal: a correction, a retried question, an empty result, or explicit teaching. Every learned entry has provenance. Until someone other than the teacher confirms it, the agent states it as an assumption. A correction on an answer that used it makes it uncertain; disagreement between users makes it contested, and the agent asks which meaning is intended. When the configuration changes, discovered entries that depend on it are re-derived or retired, and learned entries that depend on it are marked uncertain.
 
 ## Trust and accuracy
 
@@ -58,11 +58,11 @@ The user says so in the conversation. The correction is a learning signal: any l
 
 ### Can a user see anything they cannot already see in Aras?
 
-No. Every data access runs through the Aras server as the signed-in user, with that user's permissions. There is no service account with wider access and no administrator-granted organisation-wide view. Stored file text is re-checked through Aras each time it is used. See [security and permissions](../architecture/security-and-permissions.md).
+No. Every data access runs through the Aras server as the signed-in user, with that user's permissions. There is no service account with wider access and no administrator-granted organisation-wide view. Stored file text is re-checked through Aras each time it is used. The one residual risk is a business data value slipping into shared learned knowledge, which the MVP guards against with prompts rather than an automated audit; see [risks](risks.md). See [security and permissions](../architecture/security-and-permissions.md).
 
 ### Does any data leave our premises?
 
-Not by the product's design. It is self-hosted, and model calls go only to the endpoints the company configures. If those endpoints are internal or in a private cloud, no data leaves the company's control. If the company chooses an external model provider, the content sent to that model leaves accordingly; that is the company's choice.
+Not by the product's design. It is self-hosted, and model calls go only to the endpoints the company configures. If those endpoints are internal or in a private cloud, no data leaves the company's control. If the company chooses an external model provider, the content sent to that model leaves accordingly; that is the company's choice. The product sends nothing to its makers: it has no automatic telemetry.
 
 ### Where is data stored?
 
@@ -78,17 +78,17 @@ A Sandbox: one hardened container per user conversation, or a full virtual machi
 
 ### How do long-running background jobs authenticate?
 
-With a renewable credential for the requesting user, scoped to that job and dropped when the job ends. No privileged account is involved.
+With a renewable credential for the requesting user, scoped to that job and dropped when the job ends, where the installation's sign-in issues renewable grants; otherwise the scan runs on the user's session credential and pauses when the session ends. No privileged account is involved.
 
 ### Is there an audit trail?
 
-Yes. Every query run on a user's behalf is recorded with the user, the time, and the outcome, along with usage records for model calls. See [audit and progress](../specs/audit-and-progress.md).
+Yes. Every query run on a user's behalf is recorded with the user, the time, and the outcome, along with usage records for model calls. Operators read the records through documented database views and an export; there are no administrator endpoints in the MVP. See [audit and progress](../specs/audit-and-progress.md).
 
 ## Models
 
 ### Can we use our own model endpoints and switch models?
 
-Yes. There are three configurable model slots: the main conversational agent, the Analysis Workers, and background work. Each can point at an OpenAI-compatible endpoint or a natively supported client. Switching a model is a configuration change. No embedding model or vector database is required. See [model configuration](../specs/model-configuration.md).
+Yes. There are three configurable model slots: the main conversational agent, the Analysis Workers, and background work. Each points at an OpenAI-compatible endpoint; the MVP ships no native provider clients, and one can be added when a customer's provider needs it. Switching a model is a configuration change. No embedding model or vector database is required. See [model configuration](../specs/model-configuration.md).
 
 ### Which models does it need?
 
@@ -118,17 +118,17 @@ Not in the MVP. A repeated question queries Aras again, which keeps results curr
 
 ### What happens when Aras is upgraded or reconfigured?
 
-Discovery detects configuration changes and regenerates the discovered layer. Learned knowledge that depended on changed elements is re-derived, marked uncertain, or retired. Standard Aras names are never assumed; they are discovered.
+Discovery detects configuration changes and regenerates the discovered layer. Discovered knowledge that depended on changed elements is re-derived or retired, and dependent learned knowledge is marked uncertain. Business item type, property, and state names are never assumed; they are discovered.
 
 ## Business
 
 ### How is it priced?
 
-Pricing is an open decision. The realistic options and their trade-offs, including the effect of the company paying for its own model usage, are in [pricing options](pricing-options.md).
+Pricing is not decided; the business makes that decision. The realistic options and their trade-offs, including the effect of the company paying for its own model usage, and a recommendation for the first customers are in [pricing options](pricing-options.md).
 
 ### How do we measure ROI?
 
-The metrics (questions answered, active users, time to answer, estimated time saved, citation follow-through, correction rate, load on Aras, cost per answer, and others) are defined in [value and ROI](value-and-roi.md) and computed from the product's own records. A dashboard for them is deferred.
+The metrics (questions answered, active users, time to answer, estimated time saved, citation follow-through, correction rate, load on Aras, cost per answer, and others) are defined in [audit and progress](../specs/audit-and-progress.md), explained in [value and ROI](value-and-roi.md), and computed from the product's own records. Operators read them through documented database views and an export; a dashboard for them is deferred.
 
 ### What does it cost to run?
 
@@ -140,7 +140,7 @@ Through a pilot with defined phases, acceptance questions, and success and exit 
 
 ### What is not included?
 
-Writing to Aras, OCR, email and image files, CAD geometry, caching, sources outside Aras, several Aras instances, Teams and Slack, export, saved questions and dashboards, scheduled reports, and features for developers and administrators. See [scope](../product/scope.md).
+The main exclusions are writing to Aras, OCR, email and image files, CAD geometry, caching, a history of Aras data kept by the product, an analytics path that avoids the production server, sources outside Aras, several Aras instances, Teams and Slack, an MCP interface, export, saved questions and dashboards, scheduled reports, an ROI dashboard, and features for developers and administrators. The complete list is in the [roadmap](../product/roadmap.md), and the categories are in [scope](../product/scope.md).
 
 ### Who is it for?
 

@@ -20,17 +20,27 @@ Every factual statement you make about the user's data must be traceable to a so
 ### The three kinds of source
 
 1. **Aras record.** An item in Aras: its type, its id, and a link that opens it. Tools that read records (`aml_query`, and `aml_fetch` for workers) return a citation id for each record they return.
-2. **File passage.** A part of a file stored in Aras: the file, and the page or section the statement rests on. `file_read` and `file_fetch` return citation ids per passage.
-3. **Knowledge entry.** A Discovered or Learned knowledge entry you relied on to interpret the question or the data, for example the definition of a term or the meaning of a workflow step. `knowledge_read` returns a citation id for each entry, with its state and confidence. Citing knowledge tells the user that part of the answer depends on what the product has learned, not only on the data.
+2. **File passage.** A part of a file stored in Aras: the file, and the page, sheet, slide, or section the statement rests on. `file_read` and `file_fetch` return citation ids per segment of the file (a page, sheet, slide, or section), not per passage; cite the segment that holds the statement. A phrase search with `file_read` returns each matching passage with its own id, and an Analysis Worker can ask for a finer citation of a passage in its report.
+3. **Knowledge entry.** A Discovered or Learned knowledge entry you relied on to interpret the question or the data, for example the definition of a term or the meaning of a workflow step. `knowledge_read` returns a citation id for each entry, and `schema_describe` results also issue knowledge citations for the configuration elements they describe. A knowledge citation carries the entry's state, its confirmation status (learned entries only), and its confidence. The product computes the confidence as a label: **high** for a mechanically derived Discovered entry in state confirmed, and for a Learned entry that is confirmed and independently confirmed; **medium** for a model-inferred Discovered entry in state confirmed, and for a Learned entry that is confirmed but not yet independently confirmed; **low** for any entry that is uncertain or contested. Citing knowledge tells the user that part of the answer depends on what the product has learned, not only on the data.
+
+### Citation sets
+
+A figure such as "412 change orders finished late" rests on hundreds of records, and listing every record is impossible. A **citation set** is one id (it starts with `cst_`) that stands for a whole group of record citations. It is not a fourth kind of source: it is a grouping of Aras record citations, and the user opens it as a paged list of the member records, each of which opens in Aras.
+
+- Set ids are issued by the product, never invented by you. Each `aml_fetch` returns the set id covering every record in the file it wrote, and a worker can register narrower sets in its report (see python-analysis-in-sandbox).
+- A computed number over many records cites the set that covers the records counted, plus a few representative record citations (the records behind a short ranking, the examples you show). Write a set like any citation: `[cite:cst_...]`.
+- A set id that appears in a worker report is valid. When you use a finding that rests on a set, carry the set id into your answer unchanged.
+- Cite a set only for the records it holds. Never invent a set id, and never cite a set as support for a statement about one record that is not a member.
 
 ### How to cite
 
 - Place the citation immediately after the statement it supports, in the form `[cite:<citation id>]`. Several sources for one statement: `[cite:<id1>][cite:<id2>]`.
 - Cite at the level of the claim. A sentence that combines two facts from two sources carries both citations.
-- A computed number (a count, a duration, a share, a ranking) cites the knowledge entries that defined what was counted, and refers to the evidence it was computed from. When the evidence is many records, cite a representative set (the records that make up a short list, the top items of a ranking, or the examples you show) and state the total the number was computed over. Do not paste hundreds of citations.
-- When you quote or paraphrase a file, cite the passage, not only the file.
+- A computed number (a count, a duration, a share, a ranking) cites the knowledge entries that defined what was counted, and refers to the evidence it was computed from. When the evidence is many records, cite the citation set that covers them plus a few representative records (the records that make up a short list, the top items of a ranking, or the examples you show), and state the total the number was computed over. Do not paste hundreds of citations.
+- When you quote or paraphrase a file, cite the segment it comes from (the page, sheet, slide, or section), not only the file.
 - When an answer relies on a definition, cite the knowledge entry that holds it. If the definition came from the user in this conversation, say so instead ("as you defined it above").
 - An Analysis Worker report carries its own citation ids. When you use a finding from a report, carry its citations into your answer unchanged.
+- If you are an Analysis Worker, write `[cite:<id>]` markers in your report's `summary` and in each finding's `statement`, as in any answer. In the structured fields (`support`, and the `basis` of a computed number) give plain citation ids, or citation set ids, with no marker around them.
 
 ### What must not be cited, and what must be cited
 
@@ -48,5 +58,5 @@ Every factual statement you make about the user's data must be traceable to a so
 Before you return an answer or report, read it once for citations:
 
 - Every sentence that states a fact about the data has a citation, or is clearly a computed result with its basis stated.
-- Every citation id came from a tool result in this conversation or from a worker report.
+- Every citation id came from a tool result in this conversation or from a worker report. The product checks every marker before an answer is shown: a marker whose id no tool issued is removed, and its sentence is shown to the user as unverified.
 - No citation supports something it does not say. A record that shows a change was created on a date does not support a claim about why it was created.

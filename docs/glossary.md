@@ -12,7 +12,7 @@ Plain-language definitions for readers who are not Aras or AI specialists. Aras 
 | Aras Innovator | A product lifecycle management (PLM) platform. "Aras" in these documents refers to it. |
 | Change order | A record that authorises a change to parts or documents. Standard examples include Express ECO; installations often have their own. |
 | Change request | A record that asks for a change to be considered; in many processes it precedes a change order. |
-| Configuration | How an installation is set up: its item types, properties, relationships, lists, workflows, lifecycles, methods, forms, and permissions. Distinct from business data. |
+| Configuration | How an installation is set up: its item types, properties, relationships, lists, workflows, lifecycles, methods, and forms. Distinct from business data. Aras Insight does not read permission definitions. |
 | Form | The layout used to display and edit an item in the Aras client. |
 | Generation | Aras's internal counter of saved versions of an item; each new version of a versioned item is a new generation. |
 | Identity | An Aras user, group, or role to which permissions and workflow assignments are given. |
@@ -42,20 +42,28 @@ Plain-language definitions for readers who are not Aras or AI specialists. Aras 
 | Agent loop | The cycle of model call, tool call, and result that drives an agent. Aras Insight uses its own thin loop, not an agent framework. |
 | Analysis Worker | An agent started by the Main Agent for heavy work such as aggregation, trends, process questions, or reading many files. It computes in a Sandbox and returns a report. |
 | Assumption | An interpretation the agent made (for example a definition of "delayed") that the answer states openly. |
-| Background job | Long-running work, such as a full-text scan across files, run outside the conversation, as the user, after the user confirms. |
+| Background job | Long-running work run outside the conversation: a full-text scan across files, which runs as the user after the user confirms, or batched learning over transcripts. |
+| Chat App | The web interface where users sign in through Aras, ask questions, watch progress, and read cited answers. It holds no agent logic. |
 | Citation | A reference from a statement in an answer to its source: an Aras record, a file passage, or a knowledge entry. |
+| Citation Registry | The part of the Tool Gateway that records every Aras record, file passage, and knowledge entry an answer may cite, so that citations point at things that were actually retrieved. |
+| Confidence | The high, medium, or low label shown with a knowledge entry. It is derived from the entry's layer, state, and whether someone other than its teacher has confirmed it. |
 | Context window | The amount of text a model can consider at once. |
 | Coverage | The part of an answer that says what the answer was based on and what it could not see or read. |
+| Database | The one PostgreSQL instance that holds sessions and transcripts, knowledge, extracted file text, job state, and audit and usage records. |
 | Discovery | Automatic reading of the Aras configuration to build the discovered layer of knowledge. |
 | Embedding and vector index | A numeric representation of text used for similarity search, and the index that stores it. Not used in the MVP. |
+| File Service | The part of the Tool Gateway that fetches vault files through Aras as the user, extracts their text, stores it keyed by file id, and re-checks the user's access each time the text is used. |
 | Fine-tuning | Further training of a model on specific data. Not used. |
 | Hallucination | A model stating something that is not supported by its sources. |
+| Independently confirmed | A learned entry that someone other than the person who taught it has confirmed. Until then the agent states the entry as an assumption when it uses it. |
 | Instance Knowledge | What Aras Insight knows about one installation: the Discovered layer (from configuration) and the Learned layer (from conversations). |
-| Knowledge entry | One unit of knowledge, with a description, provenance, and a state: confirmed, uncertain, contested, or retired. |
+| Knowledge entry | One unit of knowledge, with a description, provenance, and a state (confirmed, uncertain, contested, or retired). A learned entry also records whether someone other than its teacher has confirmed it. |
+| Knowledge Service | The component that stores and serves the knowledge layers (Product Skills, Instance Knowledge, User Preferences). It loads them by index and description, not by vector search. |
 | Learner | The component that writes and maintains Learned knowledge from conversations. |
 | Main Agent | The conversational agent that talks to the user, answers simple lookups, and starts Analysis Workers. |
 | MCP (Model Context Protocol) | An open protocol for exposing tools to AI agents. An MCP interface is deferred. |
 | Model endpoint | The network address of a language model service. Aras Insight uses endpoints the customer configures. |
+| Model Router | The component that sends each model call to the endpoint configured for its slot. |
 | Model slot | One of three configurable model roles: main, worker, background. |
 | OCR (optical character recognition) | Extracting text from images and scanned pages. Deferred. |
 | Product Skills | Guidance shipped with the product, such as how to write AML and how to use the tools. |
@@ -67,4 +75,4 @@ Plain-language definitions for readers who are not Aras or AI specialists. Aras 
 | Token | The unit in which models measure text; model usage is usually billed per token. |
 | Tool | A function the agent can call, such as running an AML query or reading a file. |
 | Tool Gateway | The only component that talks to Aras. It holds each user's credentials and runs every query as that user. |
-| User Preferences | Per-user settings and habits, kept separate from shared knowledge. |
+| User Preferences | Settings and habits that belong to one user, kept separate from shared knowledge and never shared with other users. The MVP has no role-level preferences. |

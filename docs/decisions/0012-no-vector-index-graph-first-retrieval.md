@@ -17,7 +17,7 @@ The model is the semantic layer. There is no vector index and no reuse of the in
 | --- | --- |
 | Vector index over all vault files | Permission-faithful retrieval is hard; index sync; an embedding model to host or send data to; a large store of business content. The graph usually narrows to a small set of relevant files anyway. |
 | Reuse the installation's existing search engine | Behaviour, coverage, and permission handling vary per installation; ties the product to a component not every customer runs. |
-| Vector index over learned and discovered knowledge | Not needed: the agent's own knowledge is loaded by index and description, and vector search, if ever used, is reserved for files inside Aras. See Open questions for the revisit trigger held in the backlog. |
+| Vector index over learned and discovered knowledge | Not needed: the agent's own knowledge is loaded by index and description, and vector search, if ever used, is reserved for files inside Aras. See the [roadmap](../product/roadmap.md) for the revisit trigger. |
 
 ## Consequences
 
@@ -25,10 +25,8 @@ The model is the semantic layer. There is no vector index and no reuse of the in
 - Every file read is a fresh, permission-checked read through Aras.
 - Questions with no item anchor need a different path: metadata search, then a user-confirmed full-text scan ([ADR 0013](0013-user-confirmed-background-full-text-scan.md)).
 - Per-question file budgets and relevance ordering will be tuned once the system runs.
-
-## Open questions
-
-- The backlog holds a possible later vector index for learned and discovered knowledge, to be revisited only if the knowledge base outgrows index-based loading (see [roadmap](../product/roadmap.md)). That would revisit the statement above that vector search is for files, not for the agent's own material, and would need a new decision record.
+- Knowledge is found by an index of titles and one-line descriptions, with case-insensitive term matching, a fixed ranking and at most 50 index lines per call ([Knowledge and learning](../specs/knowledge-and-learning.md)).
+- The roadmap lists a possible later vector index for learned and discovered knowledge. It is reconsidered only if the knowledge base outgrows index-based loading: in the pilot, the share of questions where a needed entry lay outside the first 50 index lines, or index lines for common terms no longer fit the context budget (see [roadmap](../product/roadmap.md)). That would revisit the statement above that vector search is for files, not for the agent's own material, and would need a new decision record.
 
 ## Related
 

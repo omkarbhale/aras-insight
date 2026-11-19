@@ -1,11 +1,11 @@
 # 0005. User-level access through the Aras server only
 
 - Status: Accepted
-- Scope: MVP
+- Scope: MVP. The no-hybrid and no-administrator-aggregates stance is standing; the no-read-replica part holds for the MVP only (see [roadmap](../product/roadmap.md)).
 
 ## Context
 
-Analytical questions ("top components on delayed changes last quarter") touch many records. There is a pull toward giving the product broad access for speed and completeness: a reporting copy, an administrator-granted view of everything, or direct database reads. Each of those makes the product, rather than Aras, the place where access control is decided. Aras permissions are rich (identities, permissions per item and state, classification, ownership and team rules) and can be extended by custom server methods that run when items are read; re-implementing them faithfully outside Aras is error-prone, and any gap leaks data.
+Analytical questions ("which parts appear most often on change orders that finished late last quarter") touch many records. There is a pull toward giving the product broad access for speed and completeness: a reporting copy, an administrator-granted view of everything, or direct database reads. Each of those makes the product, rather than Aras, the place where access control is decided. Aras permissions are rich (identities, permissions per item and state, classification, ownership and team rules) and can be extended by custom server methods that run when items are read; re-implementing them faithfully outside Aras is error-prone, and any gap leaks data.
 
 ## Decision
 

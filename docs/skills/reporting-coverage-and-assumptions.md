@@ -19,7 +19,7 @@ Every answer states what it was based on and what it assumed. The user should ne
 
 ### Coverage: what the answer is based on
 
-Report these, in plain language, for every answer that rests on more than a single record:
+Report these, in plain language, on every answer:
 
 1. **Basis.** How many records the answer was computed from, and what they were ("142 change orders created between 1 July and 30 September").
 2. **Visibility.** That the records are those the user can access. Say it once, simply: "based on the records you have access to". Do not speculate about records the user cannot see, and never estimate how many there might be.
@@ -28,26 +28,31 @@ Report these, in plain language, for every answer that rests on more than a sing
 5. **Limits reached.** Anything not examined because a budget, a row limit, or a time limit stopped the work. Say what was not covered and whether a larger job (for example a background scan) could cover it.
 6. **Read-time filtering.** If Discovered knowledge says an item type's results may be filtered or altered when read, mention that the results reflect what the system returned to the user.
 
-For a single-record lookup, coverage is implicit; mention it only if something was missing or unreadable.
+For a lookup that rests on a single record, coverage is one short clause that carries the basis and the visibility together ("from the 1 record you can access"); add the other items only if something was missing or unreadable.
 
 ### Assumptions: what the answer took for granted
 
 State every assumption that could change the answer if it were wrong:
 
-- **Definitions** of terms the question used ("delayed", "late", "recurring", "critical"), with the source of the definition: the user in this conversation, a Learned entry (cite it), a Discovered suggestion, or your own choice.
+- **Definitions** of terms the question used ("delayed", "late", "recurring", "critical"), with the source of the definition: the user in this conversation, the user's own working definition, a Learned entry (cite it), a Discovered suggestion, or your own choice.
 - **Scope** choices: the time window, which item types were included, whether all revisions or only current ones were counted, how duplicates were treated.
 - **Unconfirmed or uncertain knowledge** you relied on. Follow uncertain-and-contested-knowledge for the wording.
 - **Interpretation of the data**, for example treating a specific date property as the completion date.
 
-State an assumption once, near the result it affects. Do not bury assumptions in a long list of generic disclaimers; list only those that are real and specific.
+Where an assumption goes depends on what it is:
+
+- An assumption the user should be able to object to, one that rests on a Learned entry that is not independently confirmed or on an uncertain entry, goes inline, next to the result it affects, with its short invitation to object. That is where the user will read it.
+- Scope and definition choices (the items above other than knowledge you relied on) go in the closing basis and assumptions part, after the evidence and coverage.
+
+State each assumption once, in the one place that fits. Do not bury assumptions in a long list of generic disclaimers; list only those that are real and specific.
 
 ### Wording
 
-- Lead with the result, then coverage, then assumptions. Keep coverage to a short paragraph or a few bullets.
+- Lead with the result, then coverage, then assumptions (apart from the inline ones above). Keep coverage to a short paragraph or a few bullets.
 - Use numbers, not vague words: "38 of 142 had no linked report" rather than "some had no report".
 - Do not apologise and do not hedge the whole answer because part of it is incomplete. Report the gap precisely and let the user decide.
 - Never present coverage you did not measure. If you did not count something, do not estimate it.
 
 ### For Analysis Workers
 
-Your report has separate coverage and assumptions fields. Fill them with counts computed in the Sandbox, not estimates. The Main Agent will carry them into the answer.
+Your report has separate coverage and assumptions fields. Fill them with counts computed in the Sandbox, not estimates. The Main Agent will carry them into the answer. Set `disclose` to true on every assumption the Main Agent should state in its answer. It places those that rest on a Learned entry that is not independently confirmed, or on an uncertain entry, next to the result they affect, and the others in the basis and assumptions part.

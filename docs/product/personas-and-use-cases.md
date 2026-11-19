@@ -1,6 +1,6 @@
 # Personas and use cases
 
-Aras Insight serves business end users in every role that touches product data. It is not aimed at Aras developers or administrators in the MVP (see [roadmap](roadmap.md)). Every user sees only what their own Aras account can see, so the same question asked by two people can return different, equally correct answers.
+Aras Insight serves business end users in every role that touches product data. It is not aimed at Aras developers or administrators in the MVP (see [roadmap](roadmap.md)); the audit and usage reports and the compatibility check are operations tooling for the customer's infrastructure staff, not features for Aras administrators. Every user sees only what their own Aras account can see, so the same question asked by two people can return different, equally correct answers.
 
 Item type, relationship, and state names in the examples below (for example Part, Document, Express ECO, Problem Report, Affected Item, Workflow Process, Activity) are typical of standard Aras installations. They are illustrations only. Aras Insight discovers the actual names and structures of each installation, and the examples would be phrased in that installation's own vocabulary.
 
@@ -47,7 +47,7 @@ The use cases map to these capabilities. Each is described in the [scope](scope.
 
 | Example question | Capabilities |
 |---|---|
-| Which components show up most often as affected items on change orders that missed their target last quarter, and what failure modes do their linked test reports describe? | C2, C3, C4, C7 |
+| Which five parts appear most often on change orders that finished late last quarter, and what do the linked engineering reports say went wrong with them? | C2, C3, C4, C7 |
 | Which review activities have the longest median wait time this year? | C2, C5 |
 | How many parts were revised more than three times in the last year, and in which assemblies? | C2 |
 
@@ -124,12 +124,12 @@ The four use cases below are representative of the hardest questions the MVP mus
 
 ### Analytical: ranking with explanation
 
-> "Which five components show up most often on change orders that ran late last quarter, and what failure modes do the reports linked to them describe?"
+> "Which five parts appear most often on change orders that finished late last quarter, and what do the linked engineering reports say went wrong with them?"
 
-1. "Delayed" is not defined by the data. Because the analysis is expensive, the agent asks one short question first, offering a definition suggested from discovery (for example, released later than a target date property, or longer than a given number of days in a review state).
-2. An Analysis Worker fetches the change orders for the period and their affected items into the Sandbox, applies the definition with code, and ranks the components.
+1. "Late" is not defined by the data. Because the analysis is expensive, the agent asks one short question first, offering a definition suggested from discovery (for example, released later than a target date property, or longer than a given number of days in a review state).
+2. An Analysis Worker fetches the change orders for the period and their affected items into the Sandbox, applies the definition with code, and ranks the parts.
 3. For the top five, it narrows to the linked reports through Aras relationships, fetches their text, and searches it with code for failure-mode passages.
-4. The answer gives the ranking with counts, a summary of failure modes per component with file citations, and coverage: how many change orders were considered, how many affected items had no linked report, and which files were unreadable (for example scanned PDFs). It phrases the result as association, not cause.
+4. The answer gives the ranking with counts, a summary of failure modes per part with file citations, and coverage: how many change orders were considered, how many affected items had no linked report, and which files were unreadable (for example scanned PDFs). It phrases the result as association, not cause.
 
 ### Why: answers outside metadata rows
 
@@ -145,7 +145,7 @@ The agent fetches the revision history of the assembly and the change orders and
 
 ### Process mining
 
-> "Do our redline review runs follow the defined workflow, and where do they wait the longest?"
+> "Does our design review process follow its defined workflow, and where do reviews wait the longest?"
 
 The agent reads the discovered workflow definition (the defined activities and paths) and fetches the actual workflow history of items that ran through it: which activities ran, in what order, when they started and finished, and votes or paths taken. An Analysis Worker compares the actual paths with the definition and computes waiting times per activity. The answer reports the common deviations (skipped, repeated, or out-of-order steps) with counts, the activities with the longest waits, and example items for each, with citations.
 
@@ -153,7 +153,7 @@ The agent reads the discovered workflow definition (the defined activities and p
 
 > "Have we documented any issues with this coating supplier?"
 
-There is no starting item. The agent searches item names, titles, descriptions, and file names through AML. If that is not enough, it proposes a full-text scan across file contents as a background job, with an estimate of its size. The scan runs only after the user confirms, batched and throttled, as that user. The user can leave and come back for the result.
+There is no starting item. The agent searches item names, titles, descriptions, and file names through AML. If that is not enough, it proposes a full-text scan across file contents as a background job, with an estimate of how many files it covers and how long it is expected to take. The scan runs only after the user confirms, batched and throttled, as that user. The user can leave and come back for the result.
 
 ## Mapping roles to capabilities
 

@@ -23,7 +23,8 @@ In the MVP, keeping learned knowledge free of data values relies on a strong ini
 - The control is probabilistic, and the documentation says so ([security and permissions](../architecture/security-and-permissions.md#how-never-what)).
 - The prompt and skill texts are critical artefacts ([docs/prompts/README.md](../prompts/README.md), [docs/skills/README.md](../skills/README.md)).
 - Provenance on every entry means a leaked value can be traced and removed.
+- There is no programmatic data-value guard on writes: the Learner prompt tells the model to strip any data value and to record nothing when nothing remains. Entries that fail the structural checks are still rejected ([ADR 0044](0044-learner-operations-and-signals.md)).
 
 ## Related
 
-[ADR 0017](0017-three-knowledge-layers.md), [Knowledge and learning](../specs/knowledge-and-learning.md).
+[ADR 0017](0017-three-knowledge-layers.md), [Knowledge and learning](../specs/knowledge-and-learning.md), [ADR 0044](0044-learner-operations-and-signals.md).
