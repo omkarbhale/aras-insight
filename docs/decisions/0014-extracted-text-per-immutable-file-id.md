@@ -23,7 +23,8 @@ The File Service stores extracted text keyed by Aras file id. Because Aras files
 
 - Repeated reads of the same file are cheap after the first, for any user who has access.
 - The Database holds a copy of vault text; retention is configurable and the copy is never served without a fresh access check ([security and permissions](../architecture/security-and-permissions.md#data-at-rest)).
-- The immutability assumption must be verified per Aras version ([deployment and operations](../architecture/deployment-and-operations.md#aras-version-compatibility-to-verify)).
+- Original file bytes are never stored, only the extracted text ([ADR 0038](0038-sandbox-and-extraction-isolation.md)).
+- The immutability assumption is one of the documented manual checks that the customer's Aras owners confirm for each Aras version; the shipped compatibility check does not cover it ([deployment and operations](../architecture/deployment-and-operations.md#aras-version-compatibility-to-verify), [ADR 0040](0040-operator-reports-without-administrator-endpoints.md)).
 - This is not a query cache: it stores file contents, not answers or results.
 
 ## Related

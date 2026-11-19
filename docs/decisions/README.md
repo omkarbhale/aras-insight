@@ -14,6 +14,8 @@ All records here have status **Accepted**, and each states in its Scope line whe
 | 0002 | [Self-hosted](0002-self-hosted.md) |
 | 0003 | [Business end users first](0003-business-end-users-first.md) |
 | 0031 | [Sources limited to Aras and what it connects to](0031-sources-limited-to-aras.md) |
+| 0041 | [No telemetry to the makers of the product](0041-no-telemetry-to-the-makers.md) |
+| 0053 | [Core capabilities: parallel workers, audit records, assumption statements, live learning, and preferences](0053-core-capabilities.md) |
 
 ### Data access and query safety
 
@@ -25,6 +27,9 @@ All records here have status **Accepted**, and each states in its Scope line whe
 | 0030 | [Throttling in MVP](0030-throttling-in-mvp.md) |
 | 0023 | [No caching in MVP](0023-no-caching.md) |
 | 0024 | [No history of Aras data](0024-no-data-history.md) |
+| 0033 | [Sign-in only through the Aras authorization server](0033-sign-in-through-the-aras-authorization-server.md) |
+| 0034 | [Stored Aras credentials are encrypted at rest with a deployment-supplied key](0034-credentials-encrypted-at-rest.md) |
+| 0035 | [Job credentials: renewable grant where the installation offers one, pause and resume, hard lifetime](0035-job-credential-lifecycle.md) |
 
 ### Analysis and agents
 
@@ -36,6 +41,10 @@ All records here have status **Accepted**, and each states in its Scope line whe
 | 0011 | [Our own thin agent loop instead of a framework](0011-own-thin-agent-loop.md) |
 | 0026 | [Three model slots](0026-three-model-slots.md) |
 | 0032 | [Saved sessions and live progress](0032-saved-sessions-and-live-progress.md) |
+| 0038 | [Sandbox hardening, isolated text extraction, and the file channel into the Sandbox](0038-sandbox-and-extraction-isolation.md) |
+| 0046 | [Analysis job contract: structured inputs, knowledge only through the brief, citation sets](0046-analysis-job-contract.md) |
+| 0048 | [One running turn per conversation](0048-one-running-turn-per-conversation.md) |
+| 0051 | [Model slot requirements, startup checks, clients, and token budgets](0051-model-slot-requirements-and-budgets.md) |
 
 ### Retrieval and files
 
@@ -45,6 +54,7 @@ All records here have status **Accepted**, and each states in its Scope line whe
 | 0013 | [A user-confirmed background full-text scan](0013-user-confirmed-background-full-text-scan.md) |
 | 0014 | [Extracted text stored per immutable file id](0014-extracted-text-per-immutable-file-id.md) |
 | 0025 | [OCR deferred; MVP readable formats](0025-ocr-deferred.md) |
+| 0050 | [Background full-text scans: proposal, decision flow, partial results, and completion](0050-background-job-flow.md) |
 
 ### Knowledge and learning
 
@@ -58,6 +68,12 @@ All records here have status **Accepted**, and each states in its Scope line whe
 | 0020 | [Organisation-wide learnings with disclosed assumptions](0020-organisation-wide-learnings-with-disclosed-assumptions.md) |
 | 0021 | [Learn only from signal-bearing conversations; merge rather than append](0021-learn-from-signals-and-merge.md) |
 | 0022 | [Prompt-based how-never-what enforcement in MVP](0022-prompt-based-how-never-what-enforcement.md) |
+| 0036 | [One shared discovered configuration for all users](0036-one-shared-discovered-configuration.md) |
+| 0042 | [Assumptions are disclosed to every other user until independently confirmed](0042-assumption-disclosure-and-independent-confirmation.md) |
+| 0043 | [Contested knowledge: ask once per conversation, and how a contest ends](0043-contested-knowledge.md) |
+| 0044 | [The Learner's operations, signals, and writes to Discovered entries](0044-learner-operations-and-signals.md) |
+| 0045 | [Preferences are personal and per user only](0045-personal-preferences-layer.md) |
+| 0049 | [Discovery: when it runs, what it generates, and its limits](0049-discovery-operation.md) |
 
 ### Answer quality
 
@@ -66,12 +82,22 @@ All records here have status **Accepted**, and each states in its Scope line whe
 | 0027 | [Causal honesty and coverage reporting](0027-causal-honesty-and-coverage-reporting.md) |
 | 0028 | [Ask before expensive analysis; disclose assumptions on cheap work](0028-ask-before-expensive-analysis.md) |
 | 0029 | [Three kinds of citation](0029-three-kinds-of-citation.md) |
+| 0047 | [A final answer check on every answer](0047-final-answer-check.md) |
+
+### Audit and operations
+
+| # | Decision |
+| --- | --- |
+| 0039 | [Audit and usage records: redacted query text by default, append-only, citation counters, no identity groups](0039-audit-and-usage-records.md) |
+| 0040 | [Operator reports through documented views and export; no administrator endpoints in the MVP](0040-operator-reports-without-administrator-endpoints.md) |
+| 0052 | [ROI metrics come from the product's own records](0052-roi-metrics-from-product-records.md) |
 
 ### Persistence
 
 | # | Decision |
 | --- | --- |
 | 0015 | [One PostgreSQL database](0015-one-postgresql.md) |
+| 0037 | [One service instance in the MVP; the Tool Gateway as an optional separate process](0037-single-instance-mvp-and-optional-gateway-process.md) |
 
 ## Record format
 

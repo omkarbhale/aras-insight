@@ -7,7 +7,7 @@ Each walk-through marks four things the product always does, so they can be trac
 - **[D] Definitions** - where the agent asks for, or assumes, the meaning of a term.
 - **[A] Assumptions** - where an assumption is disclosed to the user.
 - **[C] Coverage** - where the size and gaps of the evidence are measured and reported.
-- **[R] Citations** - where citation ids are issued by the Citation Registry and where they surface in the answer.
+- **[R] Citations** - where citation ids (and citation sets, which group the record citations behind a figure) are issued by the Citation Registry and where they surface in the answer.
 
 The item type, relationship, and property names used below (for example a change record type such as Express ECO, an Affected Item relationship, a Workflow Process with Activities) are typical of a standard Aras installation and are used only for illustration. In a real deployment every name comes from Discovery and must be verified against the target Aras version and the customer's configuration. Component names follow the [architecture overview](overview.md); tool names follow the [tool catalog](../specs/tool-catalog.md).
 
@@ -113,7 +113,7 @@ Points to note:
 
 > "Which five parts appear most often on change orders that finished late last quarter, and what do the linked engineering reports say went wrong with them?"
 
-This is the canonical heavy question: it needs a definition ("late"), aggregation over many records, traversal to affected items, and reading of linked documents.
+This is the archetypal heavy question: it needs a definition ("late"), aggregation over many records, traversal to affected items, and reading of linked documents.
 
 ### Stage 1: definition first, because the work is expensive
 
@@ -135,12 +135,12 @@ sequenceDiagram
     App-->>U: question with suggested definition
     U->>App: "(a)"
     App->>MA: answer
-    MA->>MA: record_learning(proposed: "late" for change orders = release later than target date, maps to: target date property, released state)
+    MA->>MA: record_learning(explicit teaching: "late" for change orders = release later than target date, maps to: target date property, released state)
 ```
 
 Property, state, and relationship names in the diagrams of these walk-throughs (a target date, a released state, affected items, generations of a part, votes, activity assignments) are illustrative; a real installation supplies its own through Discovery, to be verified against the target Aras version.
 
-The suggested definitions are built from what Discovery found (a date property that looks like a target, a released state in the lifecycle map). The agent does not invent fields. The user's choice is a learning signal of the "explicit teaching" kind; the resulting Learned entry is organisation-wide immediately and will be stated as an assumption to other users until someone else confirms it ([ADR 0020](../decisions/0020-organisation-wide-learnings-with-disclosed-assumptions.md)). A learned entry has a state (confirmed, uncertain, contested, or retired) and, separately, whether anyone other than its teacher has confirmed it; until someone has, the agent states it as an assumption.
+The suggested definitions are built from what Discovery found (a date property that looks like a target, a released state in the lifecycle map). The agent does not invent fields. The user's choice is a learning signal of the "explicit teaching" kind, learned live so that it applies in the same conversation and for colleagues at once (a core capability, [ADR 0053](../decisions/0053-core-capabilities.md)); the resulting Learned entry is organisation-wide immediately and will be stated as an assumption to other users until someone else confirms it ([ADR 0020](../decisions/0020-organisation-wide-learnings-with-disclosed-assumptions.md), [ADR 0042](../decisions/0042-assumption-disclosure-and-independent-confirmation.md)). A learned entry has a state (confirmed, uncertain, contested, or retired) and, separately, a confirmation status (unconfirmed, or independently confirmed once someone other than its teacher has confirmed it); while it is unconfirmed, the agent states it as an assumption to every user other than its teacher whenever it uses it.
 
 ### Stage 2: bounded jobs to Analysis Workers
 
@@ -181,7 +181,7 @@ sequenceDiagram
 
 The Main Agent composes the answer from the report. It does not recompute numbers; it uses the ones the worker computed. The answer contains:
 
-- The ranked list of five parts, each with the count of late change orders it appeared on, each linked to its record **[R]**, and each count traceable to the worker's computation.
+- The ranked list of five parts, each with the count of late change orders it appeared on, each linked to its record **[R]**, and each count traceable to the worker's computation and backed by a citation set (one id for the group of records it was computed from, opened in the Chat App as a paged list) with a few representative records.
 - For each part, the failure mode(s) the reports describe, with a citation to file and page **[R]**.
 - **Causal honesty:** "These parts appear most often on late change orders." Not "these parts made the change orders late."
 - **[A]** "Late means released after its target date (defined by you just now). Last quarter means the previous calendar quarter."
@@ -194,10 +194,10 @@ Failure modes drawn from the run:
 | The model writes AML with a property that does not exist on the change order type. | Query Analyzer returns a diagnostic naming the property and the closest discovered alternatives; the worker retries. | Not shown unless retries fail; then reported as a limitation. |
 | The model writes a query with no row limit over all change orders. | Query Analyzer flags cost; Throttle requires paging. | Not shown. |
 | The question budget for rows is reached before all affected items are fetched. | Throttle stops further fetches; the worker reports partial coverage. | Coverage: "Affected items fetched for 50 of 64 late orders (row budget reached)." |
-| Scanned reports with no text layer. | File Service reports them unreadable (OCR deferred). | Coverage lists them by file name and counts them; an unreadable file has no text to cite. |
-| A linked report the user cannot open. | Aras denies the download; File Service records denial. | Coverage counts them without naming their content. |
+| Scanned reports with no text layer. | File Service reports them unreadable (OCR deferred). | Coverage lists them by file name and counts them; each named file carries a file-level citation that opens it in Aras, since it has no text passage to cite. |
+| A linked report the user cannot open. | Aras denies the download; File Service records denial. | Coverage counts them without naming them or their content. |
 | A report contains text such as "ignore previous instructions". | Treated as data like any other text; it cannot change tools or permissions. | Not shown; at most quoted as content if relevant. |
-| Two workers in parallel (for example one per quarter for a comparison). | Each gets its own bounded job; they share the conversation's Sandbox and draw on the turn's question budget (each worker has a share). | Progress lines from both. |
+| Two workers in parallel (for example one per quarter for a comparison). | Each gets its own bounded job; they share the conversation's Sandbox and draw on the turn's question budget (each worker has a share). Parallel workers are a core capability ([ADR 0053](../decisions/0053-core-capabilities.md)). | Progress lines from both. |
 
 ## 3. Why-question correlating revision history with root-cause documents and sign-off comments
 
@@ -219,7 +219,7 @@ sequenceDiagram
     Note over MA: "So often" is undefined (what counts as recurring?) and the analysis is expensive:<br/>ask once. [D]
     MA-->>U: "By 'so often' do you mean the revisions of the last 18 months, looking for reasons that recur across them?<br/>I'll use that unless you say otherwise."
     U->>MA: "Yes."
-    MA->>MA: record_learning(proposed: "revised so often" for parts = revisions within the last 18 months, maps to: the part item type's generation and revision properties)
+    MA->>MA: record_learning(explicit teaching: "revised so often" for parts = revisions within the last 18 months, maps to: the part item type's generation and revision properties)
     MA->>W: start_analysis(job: revision history of this part, the change records behind each revision,<br/>their long text fields, sign-off comments on their workflows, linked root-cause documents,<br/>correlate reasons across revisions)
     W->>GW: aml_fetch(all generations of the part: revision, dates, state)
     GW->>SB: data/aml/revisions.jsonl
@@ -310,12 +310,12 @@ sequenceDiagram
     MA->>GW: aml_query(search file names for related terms)
     GW-->>MA: 2 files [R]
     Note over MA: Metadata search found a little. File contents may hold more.<br/>A full-text scan is long-running: propose, do not start.
-    MA->>BJ: start_background_job(proposal: full-text scan of documents of types T1, T2 for terms,<br/>estimated files: about 4,800, runs as you, batched and throttled)
-    BJ-->>App: proposal card (scope, estimate, "runs with your access, you can leave")
+    MA->>BJ: start_background_job(title, explanation, full-text scan of documents of types T1, T2 for terms)
+    BJ-->>App: proposal (scope, candidate files: about 4,800, expected duration, runs as you, batched and throttled)
     MA-->>App: interim answer: the 3 problem reports and 2 files found so far [R]<br/>"This covers item names, titles, descriptions and file names only." [C]
-    App-->>U: interim answer + proposal
+    App-->>U: interim answer + proposal card built from the proposal (Confirm, Decline)
     U->>App: Confirm
-    App->>BJ: confirm(job)
+    App->>BJ: confirm(job)  (a state change: no Main Agent turn)
     BJ->>GW: obtain job-scoped renewable credential for this user (held by the Tool Gateway)
     loop batches, throttled as the user
         BJ->>GW: list files in scope (AML, paged)
@@ -325,15 +325,16 @@ sequenceDiagram
         BJ-->>App: progress (files scanned / total, matches so far)
     end
     BJ->>GW: drop job credential
-    BJ->>MA: results (matched files and passages, counts, unreadable, denied)
+    BJ->>MA: results (matched files and passages, counts, unreadable, denied), starting a Main Agent turn
     MA-->>App: final answer with citations, coverage
     App-->>U: answer (also visible if the user returns later)
 ```
 
 Points to note:
 
-- **Nothing runs without confirmation.** The proposal states what will be scanned, a rough size, that it runs with the user's own access, and that it may take a while. The user can decline and keep the interim answer.
-- **Interim answer first.** The user gets what the cheap search found immediately, with coverage that says exactly what was and was not searched.
+- **Nothing runs without confirmation.** The proposal card is built by the Chat App from the proposal, not written by a model: it states what will be scanned, the number of candidate files, how long it is expected to take, and that it runs with the user's own access. The user can decline and keep the interim answer. Confirm, Decline and Cancel are state changes on the card: none starts a Main Agent turn. The exact wording is in [background-job-confirmation.md](../prompts/background-job-confirmation.md), and the layout in [chat-app.md](../specs/chat-app.md) and [background-jobs.md](../specs/background-jobs.md).
+- **Interim answer first.** The user gets what the cheap search found immediately, with coverage that says exactly what was and was not searched, so declining the scan costs nothing.
+- **The Main Agent composes the result.** When the job finishes, or is cancelled after it has read files, Background Jobs posts the result and starts a Main Agent turn automatically, even if the user has left. The Main Agent turns the matches into a cited answer with coverage in the same conversation, so the citation, coverage and causal-honesty rules apply in one place, and a cancelled job gives a partial answer that names what was not searched.
 - **Job-scoped credential.** The job runs as the requesting user with a renewable credential that is scoped to this job, held by the Tool Gateway, and dropped when it ends. There is no privileged account. See [security-and-permissions.md](security-and-permissions.md#background-jobs-job-scoped-renewable-credentials).
 - **Stored text makes later scans cheaper.** Extracted text is stored per immutable file id, so a later scan by anyone skips extraction for files already processed. Access is still re-checked through Aras, as that user, for every file on every use.
 - **[C]** "Scanned 4,812 files you can access in document types T1 and T2. 640 had no text layer (scanned) and were not searched. 0 were denied. 14 files mention corrosion in a coastal context."
@@ -351,8 +352,4 @@ Points to note:
 | Association, not causation | n/a | "appear most often on" | "documented reasons point to" | "largest share of time" | n/a |
 | Learning signal | correction if any | explicit teaching | explicit teaching | none (the user's confirmation of the uncertain entry is evaluated by the Learner) | none |
 
-## Open questions
-
-- **Proposed:** the interim answer in walk-through 5 is shown before the background job is confirmed, so the user always has something. The exact wording and layout of the proposal card are specified in [chat-app.md](../specs/chat-app.md) and [background-jobs.md](../specs/background-jobs.md).
-- **Proposed:** when a background job finishes, its results are composed into an answer by the Main Agent in the same conversation (rather than shown as raw matches). This keeps citation, coverage, and causal-honesty rules in one place.
-- Per-question file budgets and relevance ordering of which files to read first are deliberately not tuned yet; they will be set once the system runs against real installations.
+The numbers in these walk-throughs, and the default limits behind them, are provisional values that a pilot tunes. Per-question file budgets (a files-per-question setting with no default until tuned) and the relevance order of which files to read first are set once the system runs against real installations.

@@ -21,6 +21,7 @@ OCR for scanned documents is deferred. The MVP reads PDFs with a text layer, Wor
 ## Consequences
 
 - Answers over scanned evidence will show gaps, honestly reported. Coverage metrics show how much OCR would add, which informs when to build it.
+- Each unreadable file that has a name is registered as a file-level citation, so the user can open it in Aras; a file the user is denied access to is counted but never named.
 - The File Service interface is format-agnostic so new extractors can be added.
 
 ## Related

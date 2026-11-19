@@ -4,7 +4,7 @@
 
 Product data lives in Aras: parts, documents, change orders, problem reports, workflows, approvals, and the files attached to them. The answers leaders and engineers need are in there, but getting them out is slow. A simple question needs someone who knows the data model. An analytical question, such as where change approvals get stuck or which components keep coming back in problem reports, becomes a multi-day exercise of exports, spreadsheets, and manual reading. The reasons behind the numbers sit in free-text fields, sign-off comments, and attached reports that no standard report can summarise. Decisions are made late, or without the evidence.
 
-## The proposed product
+## The product
 
 Aras Insight is an assistant that answers plain-language questions about our Aras data. It finds the relevant records, reads the relevant files, computes the numbers, and returns an answer that cites every source it used. It runs on our own servers, uses our own AI model endpoints, and works only through Aras, as the person asking.
 
@@ -43,16 +43,16 @@ The main deferrals are writing to Aras, OCR for scanned documents, email and ima
 | Model quality varies | Three model slots (main agent, analysis worker, background work) are configured separately, so the strongest model can be used where it matters, and a pilot measures quality on the actual models. |
 | Scanned documents are unreadable in the MVP | They are reported in coverage, so answers state the gap instead of hiding it. OCR is on the roadmap. |
 
-The full register is in [risks](business/risks.md).
+The full register, with each risk rated before its mitigation, is in [risks](business/risks.md).
 
 ## What a pilot needs from the company
 
-- A non-production Aras environment that mirrors production configuration, or agreement to run against production with conservative throttling, plus network access from the Aras Insight server to it.
+- A non-production Aras environment that mirrors production configuration, or agreement to run against production with conservative throttling, plus network access from the Aras Insight server to it. The company chooses; either way the throttling limits are recorded in preparation, starting from the product defaults and lowered for a production pilot.
 - A server or virtual machine able to run containers, and a PostgreSQL database.
 - Access to one or more model endpoints the company approves (internal or a private cloud deployment).
 - Security review of the deployment and of the data flow.
-- A one-time registration of Aras Insight as a sign-in client by an Aras administrator (no administrator account is used at run time), and a check of the Aras version's sign-in behaviour.
-- Ten to twenty pilot users across several roles, each with their normal Aras account, and a few hours of their time.
-- An agreed set of acceptance questions and success criteria.
+- An Aras installation with an authorization server, because users sign in only through it, and a one-time registration of Aras Insight as a sign-in client by an Aras administrator (no administrator account is used at run time). An installation without an authorization server is not supported in the MVP. The Aras version's sign-in behaviour is checked as part of the compatibility checks.
+- Ten to twenty pilot users across at least four roles, each with their normal Aras account, and a few hours of their time.
+- Agreement to the product's fixed set of acceptance questions (the company may add questions of its own) and to the success criteria.
 
 The phases, acceptance questions, and exit criteria are in the [pilot plan](business/pilot-plan.md). The business case and how value is measured are in [value and ROI](business/value-and-roi.md).

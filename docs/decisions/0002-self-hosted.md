@@ -23,8 +23,8 @@ Aras Insight is deployed and operated by the customer, inside their own network,
 - The customer controls where every piece of data lives, including transcripts and extracted file text.
 - The product must be easy to install, configure, upgrade, and monitor by the customer's own staff (see [deployment and operations](../architecture/deployment-and-operations.md)).
 - Model endpoints must be configurable, including internal ones ([ADR 0026](0026-three-model-slots.md)).
-- The makers get no usage telemetry by default; product improvement relies on pilots and on what customers choose to share.
+- The product sends no automatic telemetry to its makers, and there is no opt-in channel ([ADR 0041](0041-no-telemetry-to-the-makers.md)). Product improvement relies on pilots and on what customers choose to send deliberately, for example usage figures they export themselves.
 
 ## Related
 
-[Deployment and operations](../architecture/deployment-and-operations.md), [ADR 0015](0015-one-postgresql.md).
+[Deployment and operations](../architecture/deployment-and-operations.md), [ADR 0015](0015-one-postgresql.md), [ADR 0041](0041-no-telemetry-to-the-makers.md).

@@ -20,8 +20,9 @@ The product keeps no history of Aras data, at least for now. Trends come from th
 ## Consequences
 
 - Trend questions are limited to what Aras retains; answers say so in coverage when history is missing.
-- The Database holds no business-data history; its only copies of Aras content are extracted file text, the excerpts and record names kept with citations, the text of queries kept in audit records, short snippets and progress lines kept for background jobs, and what appears in transcripts. Each has its own retention (see [Persistence](../specs/persistence.md)).
+- The Database holds no business-data history; its only copies of Aras content are extracted file text, the excerpts and record names kept with citations, the text of queries (redacted by default in audit records, and in full in the stored tool calls of transcripts), short passage snippets kept for background jobs, progress lines of every conversation, and what appears in transcripts. Each has its own retention (see [Persistence](../specs/persistence.md) and [ADR 0039](0039-audit-and-usage-records.md)).
+- The roadmap names what would prompt reconsidering: users regularly ask for trends over data that Aras overwrites or does not keep, and a permission-faithful storage design exists. That is an indicative condition, not a commitment, and would need a new record.
 
 ## Related
 
-[ADR 0018](0018-learned-knowledge-depends-only-on-configuration.md), [ADR 0023](0023-no-caching.md).
+[ADR 0018](0018-learned-knowledge-depends-only-on-configuration.md), [ADR 0023](0023-no-caching.md), [ADR 0039](0039-audit-and-usage-records.md).

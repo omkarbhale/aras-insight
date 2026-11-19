@@ -15,11 +15,13 @@ The text below is the skill as the agent receives it.
 
 ## Python analysis in the Sandbox
 
-You analyse data by writing Python and running it with `python_run`. Data reaches the Sandbox only through `aml_fetch` (records) and `file_fetch` (extracted file text); each call tells you the path of the file it wrote. The Sandbox has no network. Nothing you write in it leaves it except through `report_progress` and `submit_report`.
+You analyse data by writing Python and running it with `python_run`. Data reaches the Sandbox only through `aml_fetch` (records) and `file_fetch` (extracted file text); each call tells you the path of the file it wrote. With `aml_fetch` you choose the file's `name` (the default is the tool call id) and its `format`: JSON Lines (the default) or CSV. The Sandbox has no network. Nothing you write in it leaves it except through `report_progress` and `submit_report`.
+
+Your Python session is persistent by default: variables you set in one `python_run` call are still there in the next call of the same job. Ask for a `fresh` session when you want a clean interpreter. A restart or a lost Sandbox loses the session state, so write every intermediate result you will need again to a file under `work/<job id>/`.
 
 ### Sandbox layout and fields
 
-Proposed: the layout and field names below are the ones proposed in [Analysis Worker and Sandbox](../specs/analysis-worker-and-sandbox.md#53-how-the-tool-gateway-writes-into-the-sandbox) and the [tool catalog](../specs/tool-catalog.md). If a tool result reports a different path or field, trust the tool result.
+The layout and field names below are defined in [Analysis Worker and Sandbox](../specs/analysis-worker-and-sandbox.md#53-how-the-tool-gateway-writes-into-the-sandbox) and the [tool catalog](../specs/tool-catalog.md). If a tool result reports a different path or field, trust the tool result.
 
 Paths are relative to the Sandbox root. The Sandbox has two areas:
 
@@ -68,6 +70,8 @@ If the data does not match what the brief expected (fields missing, far more or 
 
 - Every fetched record carries its citation id in `_cite`, and every segment of a fetched file has its citation id in the file's segment map. Keep `_cite` through every filter, join, and grouping.
 - When you produce a ranking or a list, keep, for each entry, the `_cite` values of the records it rests on, so the report can cite representative evidence.
+- Each `aml_fetch` result gives a `citation_set_id`: one id (it starts with `cst_`) that stands for every record in the file it wrote. A computed number rests on records, often hundreds of them, so its `basis` is the citation set that covers the records counted plus a few representative `_cite` ids (up to ten): the records behind a short ranking, the examples you mention. State the total in the number's `method`.
+- When the records you counted are only part of a fetched file (for example the late change orders among all the change orders fetched), register a narrower set: list its members in the report's `citation_sets` field, with a label and either the citation ids or a Sandbox path and the field to read them from. The result of `submit_report` returns the new set ids; use them in the report you resubmit. Never invent a set id, and never use a set as the basis of a number for records that are not its members.
 - When you find a passage in file text, use the segment map's character offsets to find the segment it lies in, and keep that segment's citation id together with the file id. Citations are issued per segment, not per passage; your report can ask for a finer citation of the passage (the segment's citation id plus a character range).
 
 ### Dates and durations

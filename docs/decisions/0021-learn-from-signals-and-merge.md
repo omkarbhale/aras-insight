@@ -24,9 +24,10 @@ The Learner learns only from conversations that carry a signal: a correction, a 
 
 - Knowledge volume grows with genuine new meaning, not with usage.
 - Each entry is keyed by the term or configuration element it describes, so merge targets can be found.
-- The background model slot handles batched learning ([ADR 0026](0026-three-model-slots.md)).
+- The background model slot handles batched learning and the other Learner steps; live calls take priority over batched work on that slot ([ADR 0026](0026-three-model-slots.md), [ADR 0051](0051-model-slot-requirements-and-budgets.md)).
+- Live and batched learning are both core capabilities: live learning lets a definition apply later in the same conversation and for others at once ([ADR 0053](0053-core-capabilities.md)).
 - Ageing out unused entries is deferred (see [roadmap](../product/roadmap.md)).
 
 ## Related
 
-[Knowledge and learning](../specs/knowledge-and-learning.md), [Background Jobs](../specs/background-jobs.md).
+[Knowledge and learning](../specs/knowledge-and-learning.md), [Background Jobs](../specs/background-jobs.md), [ADR 0044](0044-learner-operations-and-signals.md), [ADR 0053](0053-core-capabilities.md).

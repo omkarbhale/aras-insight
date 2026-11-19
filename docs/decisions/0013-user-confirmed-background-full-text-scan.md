@@ -22,11 +22,12 @@ Questions with no item anchor are in the MVP. The agent first searches item name
 
 ## Consequences
 
-- The user sees what will be scanned, a rough size, and that it runs as them, before anything starts.
-- Background Jobs need a job-scoped renewable credential; whether an installation issues renewable tokens is a deployment check ([security and permissions](../architecture/security-and-permissions.md#background-jobs-job-scoped-renewable-credentials)).
+- The user sees what will be scanned, that it runs as them, and a rough estimate (candidate files, how many already have stored text, expected duration and expected query load, with no download volume) before anything starts.
+- Declining the scan is harmless: the user already has the interim answer from the cheap search.
+- Where the installation issues a renewable grant, a job has its own job-scoped credential and keeps running after sign-out; where it does not, the job borrows the user's session credential and pauses when that session ends. A job that loses its credential pauses and resumes from its last completed item ([ADR 0035](0035-job-credential-lifecycle.md), [security and permissions](../architecture/security-and-permissions.md#background-jobs-job-scoped-renewable-credentials)).
 - Extracted text stored per file id makes later scans cheaper ([ADR 0014](0014-extracted-text-per-immutable-file-id.md)).
 - Coverage reports what was scanned, what was unreadable, and what was denied.
 
 ## Related
 
-[Background Jobs](../specs/background-jobs.md), [question lifecycle: no item anchor](../architecture/question-lifecycle.md#5-a-question-with-no-item-anchor-that-becomes-a-background-full-text-job).
+[Background Jobs](../specs/background-jobs.md), [question lifecycle: no item anchor](../architecture/question-lifecycle.md#5-a-question-with-no-item-anchor-that-becomes-a-background-full-text-job), [ADR 0035](0035-job-credential-lifecycle.md), [ADR 0050](0050-background-job-flow.md).

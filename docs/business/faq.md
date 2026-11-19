@@ -26,7 +26,7 @@ It combines them in one answer. The agent queries records through AML and reads 
 
 ### Which file formats can it read?
 
-PDFs with a text layer, Word, Excel, PowerPoint, and plain text formats (txt, csv, html, xml). Scanned documents, images, and email files are not read in the MVP; when an answer would have depended on them, its coverage lists them as unreadable. OCR and further formats are on the [roadmap](../product/roadmap.md).
+PDFs with a text layer, Word (.docx), Excel (.xlsx), PowerPoint (.pptx), and plain text formats (txt, csv, html, xml). Scanned documents, images, email files, and the older binary Office formats (.doc, .xls, .ppt) are not read in the MVP; when an answer would have depended on them, its coverage lists them as unreadable. OCR and further formats are on the [roadmap](../product/roadmap.md).
 
 ### Can it do process mining?
 
@@ -62,7 +62,7 @@ No. Every data access runs through the Aras server as the signed-in user, with t
 
 ### Does any data leave our premises?
 
-Not by the product's design. It is self-hosted, and model calls go only to the endpoints the company configures. If those endpoints are internal or in a private cloud, no data leaves the company's control. If the company chooses an external model provider, the content sent to that model leaves accordingly; that is the company's choice.
+Not by the product's design. It is self-hosted, and model calls go only to the endpoints the company configures. If those endpoints are internal or in a private cloud, no data leaves the company's control. If the company chooses an external model provider, the content sent to that model leaves accordingly; that is the company's choice. The product sends nothing to its makers: it has no automatic telemetry.
 
 ### Where is data stored?
 
@@ -78,17 +78,17 @@ A Sandbox: one hardened container per user conversation, or a full virtual machi
 
 ### How do long-running background jobs authenticate?
 
-With a renewable credential for the requesting user, scoped to that job and dropped when the job ends, where the installation's sign-in issues renewable tokens; otherwise scans run only while the user's session is live. No privileged account is involved.
+With a renewable credential for the requesting user, scoped to that job and dropped when the job ends, where the installation's sign-in issues renewable grants; otherwise the scan runs on the user's session credential and pauses when the session ends. No privileged account is involved.
 
 ### Is there an audit trail?
 
-Yes. Every query run on a user's behalf is recorded with the user, the time, and the outcome, along with usage records for model calls. See [audit and progress](../specs/audit-and-progress.md).
+Yes. Every query run on a user's behalf is recorded with the user, the time, and the outcome, along with usage records for model calls. Operators read the records through documented database views and an export; there are no administrator endpoints in the MVP. See [audit and progress](../specs/audit-and-progress.md).
 
 ## Models
 
 ### Can we use our own model endpoints and switch models?
 
-Yes. There are three configurable model slots: the main conversational agent, the Analysis Workers, and background work. Each can point at an OpenAI-compatible endpoint or a natively supported client. Switching a model is a configuration change. No embedding model or vector database is required. See [model configuration](../specs/model-configuration.md).
+Yes. There are three configurable model slots: the main conversational agent, the Analysis Workers, and background work. Each points at an OpenAI-compatible endpoint; the MVP ships no native provider clients, and one can be added when a customer's provider needs it. Switching a model is a configuration change. No embedding model or vector database is required. See [model configuration](../specs/model-configuration.md).
 
 ### Which models does it need?
 
@@ -124,11 +124,11 @@ Discovery detects configuration changes and regenerates the discovered layer. Di
 
 ### How is it priced?
 
-Pricing is an open decision. The realistic options and their trade-offs, including the effect of the company paying for its own model usage, are in [pricing options](pricing-options.md).
+Pricing is not decided; the business makes that decision. The realistic options and their trade-offs, including the effect of the company paying for its own model usage, and a recommendation for the first customers are in [pricing options](pricing-options.md).
 
 ### How do we measure ROI?
 
-The metrics (questions answered, active users, time to answer, estimated time saved, citation follow-through, correction rate, load on Aras, cost per answer, and others) are defined in [value and ROI](value-and-roi.md) and computed from the product's own records. A dashboard for them is deferred.
+The metrics (questions answered, active users, time to answer, estimated time saved, citation follow-through, correction rate, load on Aras, cost per answer, and others) are defined in [audit and progress](../specs/audit-and-progress.md), explained in [value and ROI](value-and-roi.md), and computed from the product's own records. Operators read them through documented database views and an export; a dashboard for them is deferred.
 
 ### What does it cost to run?
 

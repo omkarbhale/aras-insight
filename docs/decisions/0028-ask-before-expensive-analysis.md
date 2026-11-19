@@ -24,6 +24,7 @@ For expensive analysis with a missing definition, the agent asks one quick quest
 - The Main Agent needs a notion of "expensive", decided by the route: any analysis, background job, many-file read, or high-cost query as reported by the Query Analyzer is expensive, and any direct lookup is cheap ([Main Agent](../specs/main-agent.md)).
 - Suggested definitions must be grounded in discovered configuration.
 - Definitions become learned knowledge, so the question is asked once per organisation, not once per user ([ADR 0020](0020-organisation-wide-learnings-with-disclosed-assumptions.md)).
+- Because live learning is a core capability, the answer applies for the rest of the conversation and for others at once ([ADR 0053](0053-core-capabilities.md)).
 
 ## Related
 

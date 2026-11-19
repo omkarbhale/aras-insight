@@ -24,6 +24,7 @@ Aras Insight is read-only. It never creates, edits, deletes, promotes, locks, cl
 - Security review is simpler: the product needs no more than the user's existing read access.
 - Requests such as "create a change request for this" are out of scope. Write actions are listed as deferred, "later, if ever" (see [roadmap](../product/roadmap.md)).
 - Defence in depth: even if the gateway's read-only check were bypassed, the user's own Aras permissions still apply.
+- The roadmap names what would prompt reconsidering writes: a strong, specific customer need, together with an approval and audit design acceptable to the customer's Aras owners. That is an indicative condition, not a commitment, and a change of direction would need a new record that supersedes this one.
 
 ## Related
 

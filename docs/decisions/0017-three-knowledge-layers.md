@@ -13,7 +13,7 @@ Knowledge is split into three layers, served by the Knowledge Service and loaded
 
 1. **Product Skills** - shipped with the product and versioned with it: how to write AML, how to use the tools and files, what knowledge to persist and where, live or batched over transcripts.
 2. **Instance Knowledge** - about this Aras installation: **Discovered** (from configuration, including model-inferred descriptions such as "this process starts from a problem report, which fills fields A, B, C") and **Learned** (meaning formed in use, such as what the business means by "delayed"). Shared organisation-wide.
-3. **User Preferences** - per user or role, in their own personal layer, separate from shared knowledge.
+3. **User Preferences** - per user, in their own personal layer, separate from shared knowledge. Role-level preferences are not part of the MVP.
 
 ## Alternatives considered
 
@@ -27,9 +27,11 @@ Knowledge is split into three layers, served by the Knowledge Service and loaded
 
 - Each layer has its own lifecycle: skills change with upgrades; discovered knowledge with configuration; learned knowledge by learning and invalidation; preferences by the user.
 - Shared learned knowledge must contain no data values ([ADR 0018](0018-learned-knowledge-depends-only-on-configuration.md)).
-- Every layer is citable: answers cite discovered and learned entries with their confidence ([ADR 0029](0029-three-kinds-of-citation.md)).
+- Discovered and learned entries are citable, with their confidence ([ADR 0029](0029-three-kinds-of-citation.md)); no citation is registered for Product Skills or for the user's own preferences.
+- The discovered configuration is one shared copy for all users ([ADR 0036](0036-one-shared-discovered-configuration.md)).
+- Per-user preferences are classified as quality of life rather than core: the product works without them (see [scope](../product/scope.md) and [ADR 0053](0053-core-capabilities.md)).
 - The catalog of shipped skills is in [docs/skills/README.md](../skills/README.md).
 
 ## Related
 
-[Knowledge and learning](../specs/knowledge-and-learning.md).
+[Knowledge and learning](../specs/knowledge-and-learning.md), [ADR 0036](0036-one-shared-discovered-configuration.md), [ADR 0045](0045-personal-preferences-layer.md), [ADR 0053](0053-core-capabilities.md).

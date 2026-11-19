@@ -25,12 +25,14 @@ Words that the schema defines unambiguously are not deciding terms.
 
 ### Step 2: look for an existing definition
 
-In this order:
+Check all of these. Then use the first one, in this order, that gives a usable definition, unless a Learned entry for the term is contested (see 3):
 
 1. The user defined it earlier in this conversation. Use that.
-2. A Learned knowledge entry defines it. Use `knowledge_index` and `knowledge_read`. If the entry is confirmed, use it and cite it. If it is unconfirmed, uncertain, or contested, follow uncertain-and-contested-knowledge.
-3. The user's preferences define it. Use that.
-4. Discovered knowledge suggests one, for example a target date property on the item type, or a lifecycle state whose name matches. This is a suggestion, not a definition.
+2. The user's own preferences define it (a personal working definition). Use it for this user, even when an organisation-wide Learned entry also defines the term, and state it as an assumption in the answer ("I used your working definition of 'late'").
+3. A Learned knowledge entry defines it. Use `knowledge_index` and `knowledge_read`. A confirmed entry is a usable definition whether or not anyone other than its teacher has confirmed it; follow uncertain-and-contested-knowledge for how to use and disclose it. An uncertain entry is verified first. A contested entry is never a usable definition: it sends you to the question in Step 4, even when the user has a personal working definition of the term.
+4. Discovered knowledge suggests one, for example a target date property on the item type, or a lifecycle state whose name matches. This is a suggestion, not a definition, whatever the entry's state: the state says whether the entry still matches the configuration, and its confidence says how far to rely on it. Discovered knowledge may also hold an ambiguity entry for the term: a point where the configuration allows several readings, written as a question. Use it only when the rule in Step 4 tells you to ask, as material for your one question.
+
+A term has a **usable definition** when 1, 2, or 3 gives one. A term that has only a Discovered suggestion, or nothing, has no usable definition.
 
 ### Step 3: decide whether the work is expensive
 
@@ -38,30 +40,30 @@ The work is expensive if any of these is true:
 
 - It needs an Analysis Worker, or several.
 - It needs a background job.
-- It needs to read more than a handful of files.
-- It needs to fetch a large share of an item type, or the Query Analyzer reports a high cost.
+- It needs to read more than 5 files.
+- It needs a query that the Query Analyzer classes as heavy cost (for example fetching a large share of an item type).
 
 Otherwise it is cheap.
 
 ### Step 4: ask or proceed
 
-**Expensive work with a deciding term that has no confirmed definition: ask one quick question before starting.**
+**Expensive work with a deciding term that has no usable definition: ask one quick question before starting.**
 
 - Ask exactly one question. If several terms are undefined, combine them into that one question.
-- Offer a concrete suggested definition, built from Discovered or Learned knowledge, phrased in the user's terms and naming the data it relies on. Offer one or two alternatives when they are plausible.
+- Offer a concrete suggested definition, built from Discovered or Learned knowledge, phrased in the user's terms and naming the data it relies on. Offer one or two alternatives when they are plausible; an ambiguity entry from Discovery is a good source for them.
 - Make it easy to answer: the user should be able to reply "yes" or pick an option.
 - Say briefly why you are asking: the analysis will take a while and the definition decides the result.
 
 Example: "Before I start, this will scan about three months of change orders and their reports. How should I treat 'delayed'? I suggest: a change order that reached Released after its target completion date. Alternatively: one that spent more than 30 days in review. Reply with one, or describe your own."
 
-**Cheap work, or a term with a confirmed definition: proceed.** State the assumption in the answer and invite correction in a short clause: "I took 'open' to mean any state before Released; tell me if you meant something else."
+**Cheap work, or a term with a usable definition: proceed.** Do not ask. A Learned entry that only its teacher has confirmed is a usable definition: use it and disclose it as uncertain-and-contested-knowledge describes, instead of asking. State other assumptions about definitions in the answer's basis and assumptions, with a short invitation to correct them: "I took 'open' to mean any state before Released; tell me if you meant something else."
 
-**A contested term: ask, whatever the cost.** Use the contested-knowledge clarification wording.
+**A contested term: ask, whatever the cost.** Use the contested-knowledge clarification wording. Ask once per conversation: when the user has chosen, use their choice for the rest of the conversation without asking again.
 
 ### Step 5: after the user answers
 
 - Use their definition exactly, and repeat it in the answer's assumptions.
-- If the user gave a definition that is not yet known, or corrected one that is, propose it as a learning with `record_learning`. A definition is "how" knowledge: what records a term refers to, in terms of the configuration. Do not include any data values.
+- If the user gave a definition that is not yet known, or corrected one that is, propose it as a learning with `record_learning`. A definition is "how" knowledge: what records a term refers to, in terms of the configuration. Do not include any data values. If the user said the definition is only how they use the word, propose it as a personal preference (`scope` personal); otherwise it is an organisation-wide learning (see persisting-knowledge).
 - If the user declines to define it ("just use your judgement"), use your suggested definition and state it as an assumption.
 
 ### Do not
@@ -70,3 +72,4 @@ Example: "Before I start, this will scan about three months of change orders and
 - Do not ask about terms that do not change the result.
 - Do not ask permission to do cheap work. Do it.
 - Do not present a Discovered suggestion as the organisation's definition.
+- Do not treat a Learned entry as missing because only its teacher has confirmed it.

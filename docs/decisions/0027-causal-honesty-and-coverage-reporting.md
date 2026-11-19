@@ -23,6 +23,7 @@ Causal honesty is a standing product rule: the agent reports association ("appea
 - Every component that produces evidence must count what it saw, skipped, could not read, and was denied; worker reports carry coverage as a required part.
 - Throttle stops and row budgets surface as coverage, never as silent truncation.
 - Answers are somewhat longer; the Chat App presents coverage compactly.
+- Quoting a document that states its own cause is attribution, not a causal claim by the product: the agent says whose statement it is and cites it.
 
 ## Related
 

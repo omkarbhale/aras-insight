@@ -25,6 +25,7 @@ The model writes AML directly. Our code does not generate AML on the model's beh
 - Model mistakes are expected and handled by static analysis and retry, not by restricting the language.
 - Quality depends on the model and on the AML product skill; the product targets capable models ([ADR 0026](0026-three-model-slots.md)).
 - Every query is an auditable artefact in the language Aras administrators already know.
+- The SQL path is tied to the roadmap item for an analytics path that does not load production. It is reconsidered under that item's condition: production load nears agreed limits despite throttling, or analytical questions regularly hit row budgets, and a way to preserve user-level access is demonstrated (see [roadmap](../product/roadmap.md)).
 
 ## Related
 

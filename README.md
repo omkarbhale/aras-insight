@@ -24,7 +24,7 @@ The people who need these answers (executives, program managers, engineering, qu
 - **Cited, verifiable answers.** Each answer cites the Aras records (with links), file passages (with page or section), and knowledge entries it relied on, and reports its coverage: how many records it used, what had no linked evidence, and what could not be read.
 - **Checked queries.** Every generated AML query is statically analysed against the discovered schema for invalid fields and for cost before it runs. Throttling protects the production server.
 - **Learns the installation.** Aras Insight discovers the configuration automatically and learns what terms and processes mean from conversations. It learns how things work, not business data values, and the MVP enforces this through prompts.
-- **Your models, your infrastructure.** Three configurable model slots use OpenAI-compatible endpoints or native clients. No embedding model is required.
+- **Your models, your infrastructure.** Three configurable model slots use OpenAI-compatible endpoints. No embedding model is required.
 
 ## How it works
 
@@ -54,11 +54,9 @@ Full detail: [architecture overview](docs/architecture/overview.md) and [questio
 
 | Category | Examples |
 |---|---|
-| Core (MVP) | Plain-language lookups and analytics as the signed-in user; parallel Analysis Workers (proposed as core); reading text PDFs, Office files, and plain text; "why" questions; process analysis; citations and coverage; clarifying questions before expensive analysis; static query analysis; throttling; automatic discovery and learning; self-hosted with configurable model endpoints; live progress and saved sessions; user-confirmed background full-text scans; audit and usage records (proposed as core) |
-| Quality of life | Assumption statements for learned knowledge not yet independently confirmed; asking which meaning is intended when knowledge is contested; per-user preferences; live learning during a conversation; size estimates before a background job is confirmed |
+| Core (MVP) | Plain-language lookups and analytics as the signed-in user; parallel Analysis Workers; reading text PDFs, Office files, and plain text; "why" questions; process analysis; citations and coverage; clarifying questions before expensive analysis; static query analysis; throttling; automatic discovery and learning, including live learning during a conversation; assumption statements for learned knowledge not yet independently confirmed, and asking which meaning is intended when knowledge is contested; per-user preferences; self-hosted with configurable model endpoints; live progress and saved sessions; user-confirmed background full-text scans; audit and usage records |
+| Quality of life | Size estimates (candidate files and expected duration) before a background job is confirmed |
 | Not supported in MVP (main examples) | Writing to Aras, OCR and image or email formats, CAD geometry, caching, a history of Aras data kept by the product, non-Aras sources, several Aras instances, chat integrations, export, saved questions and dashboards, fine-tuning |
-
-The three categories are decided. The assignment of individual capabilities to core or quality of life is proposed unless stated otherwise.
 
 Details are in [docs/product/scope.md](docs/product/scope.md), and the plan for deferred items is in [docs/product/roadmap.md](docs/product/roadmap.md).
 
@@ -67,6 +65,7 @@ Details are in [docs/product/scope.md](docs/product/scope.md), and the plan for 
 **Start here**
 - [Executive summary](docs/executive-summary.md): one to two pages for decision-makers.
 - [Glossary](docs/glossary.md): Aras, PLM, and AI terms for non-specialists.
+- [Open questions](docs/open-questions.md): what remains undecided and why.
 
 **Product**
 - [Vision](docs/product/vision.md): the problem, the vision, product principles, and success.
@@ -76,7 +75,7 @@ Details are in [docs/product/scope.md](docs/product/scope.md), and the plan for 
 
 **Business**
 - [Value and ROI](docs/business/value-and-roi.md): the business case and the metrics to track.
-- [Pricing options](docs/business/pricing-options.md): models and trade-offs (the decision is open).
+- [Pricing options](docs/business/pricing-options.md): models, trade-offs, and a recommendation (pricing is not decided).
 - [Risks](docs/business/risks.md): risks and their mitigations.
 - [Pilot plan](docs/business/pilot-plan.md): how a company evaluates Aras Insight.
 - [FAQ](docs/business/faq.md): answers for business, IT, security, and engineering leadership.
@@ -89,7 +88,7 @@ Details are in [docs/product/scope.md](docs/product/scope.md), and the plan for 
 - [Decision records](docs/decisions/README.md)
 
 <details>
-<summary>All 32 decision records</summary>
+<summary>All 53 decision records</summary>
 
 - [0001 Read-only](docs/decisions/0001-read-only.md)
 - [0002 Self-hosted](docs/decisions/0002-self-hosted.md)
@@ -123,6 +122,27 @@ Details are in [docs/product/scope.md](docs/product/scope.md), and the plan for 
 - [0030 Throttling in MVP](docs/decisions/0030-throttling-in-mvp.md)
 - [0031 Sources limited to Aras and what it connects to](docs/decisions/0031-sources-limited-to-aras.md)
 - [0032 Saved sessions and live progress](docs/decisions/0032-saved-sessions-and-live-progress.md)
+- [0033 Sign-in only through the Aras authorization server](docs/decisions/0033-sign-in-through-the-aras-authorization-server.md)
+- [0034 Stored Aras credentials are encrypted at rest with a deployment-supplied key](docs/decisions/0034-credentials-encrypted-at-rest.md)
+- [0035 Job credentials: renewable grant where the installation offers one, pause and resume, hard lifetime](docs/decisions/0035-job-credential-lifecycle.md)
+- [0036 One shared discovered configuration for all users](docs/decisions/0036-one-shared-discovered-configuration.md)
+- [0037 One service instance in the MVP; the Tool Gateway as an optional separate process](docs/decisions/0037-single-instance-mvp-and-optional-gateway-process.md)
+- [0038 Sandbox hardening, isolated text extraction, and the file channel into the Sandbox](docs/decisions/0038-sandbox-and-extraction-isolation.md)
+- [0039 Audit and usage records: redacted query text by default, append-only, citation counters, no identity groups](docs/decisions/0039-audit-and-usage-records.md)
+- [0040 Operator reports through documented views and export; no administrator endpoints in the MVP](docs/decisions/0040-operator-reports-without-administrator-endpoints.md)
+- [0041 No telemetry to the makers of the product](docs/decisions/0041-no-telemetry-to-the-makers.md)
+- [0042 Assumptions are disclosed to every user until independently confirmed](docs/decisions/0042-assumption-disclosure-and-independent-confirmation.md)
+- [0043 Contested knowledge: ask once per conversation, and how a contest ends](docs/decisions/0043-contested-knowledge.md)
+- [0044 The Learner's operations, signals, and writes to Discovered entries](docs/decisions/0044-learner-operations-and-signals.md)
+- [0045 Preferences are personal and per user only](docs/decisions/0045-personal-preferences-layer.md)
+- [0046 Analysis job contract: structured inputs, knowledge only through the brief, citation sets](docs/decisions/0046-analysis-job-contract.md)
+- [0047 A final answer check on every answer](docs/decisions/0047-final-answer-check.md)
+- [0048 One running turn per conversation](docs/decisions/0048-one-running-turn-per-conversation.md)
+- [0049 Discovery: when it runs, what it generates, and its limits](docs/decisions/0049-discovery-operation.md)
+- [0050 Background full-text scans: proposal, decision flow, partial results, and completion](docs/decisions/0050-background-job-flow.md)
+- [0051 Model slot requirements, startup checks, clients, and token budgets](docs/decisions/0051-model-slot-requirements-and-budgets.md)
+- [0052 ROI metrics come from the product's own records](docs/decisions/0052-roi-metrics-from-product-records.md)
+- [0053 Core capabilities: parallel workers, audit records, assumption statements, live learning, and preferences](docs/decisions/0053-core-capabilities.md)
 
 </details>
 
@@ -166,7 +186,7 @@ Details are in [docs/product/scope.md](docs/product/scope.md), and the plan for 
 
 ## Contributing
 
-The project is at the specification stage. Comments on the documents are welcome as issues or pull requests. Where a document marks something as "Proposed" or lists open questions, those are the places where feedback is most useful.
+The project is at the specification stage. Comments on the documents are welcome as issues or pull requests. The remaining open questions are collected in [docs/open-questions.md](docs/open-questions.md); those are the places where feedback is most useful.
 
 ## Trademark notice
 

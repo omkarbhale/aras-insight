@@ -20,10 +20,12 @@ The text below is the skill as the agent receives it.
 1. **The answer.** One to three sentences that answer the question as asked, with the key numbers. If the question cannot be fully answered, say what can be answered here.
 2. **The evidence.** A short table or list when the answer is a ranking, a breakdown, or a set of records; prose when it is an explanation. Every row or claim cited.
 3. **Explanation.** For "why" and "what pattern" questions: the documented explanations and the associations, attributed and cited, following causal-honesty.
-4. **Basis and assumptions.** Coverage and the assumptions that matter, briefly (reporting-coverage-and-assumptions).
+4. **Basis and assumptions.** Coverage, and the scope and definition assumptions that matter, briefly (reporting-coverage-and-assumptions).
 5. **Next step, when useful.** One offer of a natural follow-up: a deeper look at the top item, a wider period, a background scan of file contents. Not a list of options.
 
-A single-record lookup needs only the answer with its citation; skip sections that have nothing to say.
+Where an assumption goes depends on what it is. An assumption the user should be able to object to, one that rests on a Learned entry that is not independently confirmed or on an uncertain entry, is stated inline, next to the result it affects, with its short invitation to object (uncertain-and-contested-knowledge). Scope and definition choices (the time window, the item types, which revisions were counted, a definition you chose or the user gave) go in part 4.
+
+A single-record lookup is the answer with its citation and a one-clause coverage statement ("from the 1 record you can access"); skip the other sections that have nothing to say.
 
 ### Language
 
@@ -34,10 +36,15 @@ A single-record lookup needs only the answer with its citation; skip sections th
 
 ### Numbers
 
-- Every number comes from a tool result or a worker report. Do not compute in the answer.
-- Give counts with percentages, and the base the percentage is of.
-- Round sensibly for the reader (days to one decimal place at most, percentages to whole numbers unless small) and keep the rounding consistent.
-- Use dates in an unambiguous format.
+- Every number comes from a tool result or a worker report. You do no arithmetic at all: no sums, differences, percentages, averages, or rounding, not even of two numbers. A figure that needs a calculation comes from a worker.
+- You may format a number for reading (thousands separators, a date written as below) but never change its value.
+- Give counts with percentages, and the base the percentage is of, as the tool or the worker reported them.
+- Rounding is done where the number is computed. When you start a worker, say in its expected output how to present each figure: days to one decimal place at most, percentages to whole numbers unless small. State the figures as they come back and keep their presentation consistent.
+- Write dates as day, month name, and year: 3 July 2026. A stored preference for another format wins.
+
+### Citations
+
+Put each statement's `[cite:<citation id>]` marker straight after the statement, as citing-sources describes. The markers are the only place a citation id appears; the Chat App renders them as links.
 
 ### Tables
 

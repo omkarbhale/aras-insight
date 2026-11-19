@@ -9,7 +9,7 @@ When one user teaches the agent what a term means ("by delayed we mean released 
 
 ## Decision
 
-Conversation-formed learnings are organisation-wide immediately, with provenance (which conversation, taught by one person). There are no user-count thresholds, so behaviour is the same at any scale. Until someone other than the teacher confirms an entry, the agent states it as an explicit assumption when using it. Carrying on without objection confirms it; objecting makes it contested. After one independent confirmation the agent stops announcing it. In a single-user deployment the teacher's word is enough. Per-user preferences stay in their own personal layer.
+Conversation-formed learnings are organisation-wide immediately, with provenance (which conversation, taught by one person). There are no user-count thresholds, so behaviour is the same at any scale. Until someone other than the teacher confirms an entry, the agent states it as an explicit assumption when using it. The assumption is stated to users other than the teacher; the teacher is not told their own definition. Carrying on without objection confirms it; objecting makes it contested. After one independent confirmation the agent stops announcing it. In a single-user deployment the teacher's word is enough: an explicit deployment setting, not a count of users, states that the deployment has one user. If that setting is later switched off, entries confirmed only by that rule become unconfirmed again, because other people now exist to object. Per-user preferences stay in their own personal layer.
 
 ## Alternatives considered
 
@@ -25,7 +25,8 @@ Conversation-formed learnings are organisation-wide immediately, with provenance
 - Answers must show assumptions clearly, and the Chat App must make objecting easy.
 - Contested entries require the agent to ask which meaning the user intends.
 - Shared entries must hold no data values ([ADR 0018](0018-learned-knowledge-depends-only-on-configuration.md)).
+- Stating assumptions and asking which meaning is intended are core capabilities, not optional extras: they are what makes immediate sharing safe ([ADR 0053](0053-core-capabilities.md)).
 
 ## Related
 
-[Knowledge and learning](../specs/knowledge-and-learning.md), [ADR 0021](0021-learn-from-signals-and-merge.md).
+[Knowledge and learning](../specs/knowledge-and-learning.md), [ADR 0021](0021-learn-from-signals-and-merge.md), [ADR 0042](0042-assumption-disclosure-and-independent-confirmation.md), [ADR 0043](0043-contested-knowledge.md), [ADR 0053](0053-core-capabilities.md).

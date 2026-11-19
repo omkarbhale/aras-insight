@@ -1,6 +1,6 @@
 # Personas and use cases
 
-Aras Insight serves business end users in every role that touches product data. It is not aimed at Aras developers or administrators in the MVP (see [roadmap](roadmap.md)). Every user sees only what their own Aras account can see, so the same question asked by two people can return different, equally correct answers.
+Aras Insight serves business end users in every role that touches product data. It is not aimed at Aras developers or administrators in the MVP (see [roadmap](roadmap.md)); the audit and usage reports and the compatibility check are operations tooling for the customer's infrastructure staff, not features for Aras administrators. Every user sees only what their own Aras account can see, so the same question asked by two people can return different, equally correct answers.
 
 Item type, relationship, and state names in the examples below (for example Part, Document, Express ECO, Problem Report, Affected Item, Workflow Process, Activity) are typical of standard Aras installations. They are illustrations only. Aras Insight discovers the actual names and structures of each installation, and the examples would be phrased in that installation's own vocabulary.
 
@@ -153,7 +153,7 @@ The agent reads the discovered workflow definition (the defined activities and p
 
 > "Have we documented any issues with this coating supplier?"
 
-There is no starting item. The agent searches item names, titles, descriptions, and file names through AML. If that is not enough, it proposes a full-text scan across file contents as a background job, with an estimate of its size. The scan runs only after the user confirms, batched and throttled, as that user. The user can leave and come back for the result.
+There is no starting item. The agent searches item names, titles, descriptions, and file names through AML. If that is not enough, it proposes a full-text scan across file contents as a background job, with an estimate of how many files it covers and how long it is expected to take. The scan runs only after the user confirms, batched and throttled, as that user. The user can leave and come back for the result.
 
 ## Mapping roles to capabilities
 

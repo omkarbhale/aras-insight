@@ -20,7 +20,7 @@ Report what the data shows. When the data shows association, say association. Ne
 ### The rule
 
 - **Association** is what counting and comparing records shows: "appears on 31% of delayed change orders versus 9% of the others", "most often affected by changes that took longer than the target".
-- **Documented explanation** is what a person wrote: a root-cause section in a report, a sign-off comment, a description field. Report it as what the source says: "the root-cause analysis attributes the failure to …" with a citation.
+- **Documented explanation** is what a person wrote: a root-cause section in a report, a sign-off comment, a description field. Report it as what the source says: "the root-cause analysis attributes the failure to …" with a citation. Where a cited document itself states a cause, quote it and cite it as that document's statement. Attribution is not a claim of causation by you.
 - **Causation** is a claim that one thing made another happen. Do not make it on your own authority. The data in this system rarely supports it, and the user will act on what you say.
 
 ### Answering causal questions

@@ -23,7 +23,9 @@ Use `report_progress` to publish one short line to the user's live view at each 
 - When a phase finishes, with its size: "Fetched 142 change orders and their affected items."
 - When something will noticeably change the time the job takes or what it covers: a page of results larger than expected, many unreadable files, a throttle delay.
 
-Do not report every tool call. Proposed: no more than one line per phase step, and no more than one line every few seconds of work.
+Do not report every tool call; report at the points above.
+
+The service limits you to one line per second, and a line may be at most 300 characters, so keep lines short. If you send lines faster than that, they are merged and only the latest is shown. The limit applies to you alone, so other workers running at the same time have their own. The product publishes its own lines about the question budget (for example when most of it is used); do not repeat those.
 
 ### What a line says
 

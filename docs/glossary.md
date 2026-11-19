@@ -75,4 +75,4 @@ Plain-language definitions for readers who are not Aras or AI specialists. Aras 
 | Token | The unit in which models measure text; model usage is usually billed per token. |
 | Tool | A function the agent can call, such as running an AML query or reading a file. |
 | Tool Gateway | The only component that talks to Aras. It holds each user's credentials and runs every query as that user. |
-| User Preferences | Per-user settings and habits, kept separate from shared knowledge. |
+| User Preferences | Settings and habits that belong to one user, kept separate from shared knowledge and never shared with other users. The MVP has no role-level preferences. |
