@@ -10,7 +10,7 @@ The schema is logical. Column types are given as PostgreSQL types because the da
 
 What the database deliberately does **not** hold:
 
-- No copy or history of Aras business data beyond what a conversation transcript naturally contains and the extracted text of files that users have read. The product keeps no history of Aras data (see [roadmap](../product/roadmap.md), deferred item "product-kept history of Aras data changes").
+- No copy or history of Aras business data beyond what a conversation transcript naturally contains and the extracted text of files that users have read. Aras-derived values also appear in four other places, each with its own retention: AML text in audit events (365 days by default, surviving conversation deletion), short passage snippets in background job items (with the conversation), progress lines that may summarise data (7 days), and record and file keyed names in citations (with the conversation); see section 12. The product keeps no history of Aras data (see [roadmap](../product/roadmap.md), "Product-kept history of Aras data").
 - No query-result cache. Every question re-reads Aras as the user (caching is deferred).
 - No vector embeddings. Knowledge is loaded by index and description; files are searched by reading them.
 - No model endpoint secrets. Model credentials are referenced from deployment configuration (see [model-configuration.md](model-configuration.md)).
@@ -37,6 +37,7 @@ It is not responsible for business rules (state transitions, budgets, confirmati
 | Enumerations | Stored as `text` with a check constraint listing the allowed values given in this document. |
 | Structured payloads | `jsonb` only where the structure is owned by one module and not queried relationally; the fields inside are listed. |
 | Soft deletion | Not used generally. Knowledge entries are retired, not deleted. Retention purges hard-delete. |
+| References | A column described as "References `x.id`" points at that row. Where retention could remove the referenced row while a reference remains (`config_items`, `learning_runs`, `sandboxes`, and `user_preference` entries), the table says so: the purge keeps rows that are still referenced, and the referencing column is nullable, so these references are logical and not enforced as foreign keys. |
 | Encryption at rest | Columns marked "encrypted" hold ciphertext produced with a key from deployment configuration, never stored in the database. **Proposed**: envelope encryption with a key-encryption key held by the deployment's secret store. |
 | Text search | There is no search index over file text, vector or otherwise. Files are narrowed through the Aras graph and their stored text is searched by reading it (in the Sandbox, or by the background scan in the service). |
 
@@ -90,7 +91,7 @@ erDiagram
 | [Model Router](model-configuration.md) | `model_calls` |
 | [Audit and progress](audit-and-progress.md) | `audit_events`, `progress_events` |
 
-Product skills are not stored as rows that can be edited: they ship with the product as files and are loaded into `knowledge_entries` with `layer = product_skill` at startup, replacing the previous product version's rows (see [knowledge-and-learning.md](knowledge-and-learning.md)).
+Product skills are not stored as rows that can be edited: they ship with the product as files and are loaded into `knowledge_entries` with `layer = product_skill` at startup: each shipped skill is upserted by skill id (a new `version` if its text changed, `product_version` updated), and a skill that is no longer shipped is retired with `retired_reason = product_upgrade` (see [knowledge-and-learning.md](knowledge-and-learning.md)).
 
 ## 6. Tables
 
@@ -171,7 +172,7 @@ Owner: Main Agent. Readable by Chat App, Learner, Background Jobs.
 | `id` | text | no | Primary key, `cnv_` prefix. |
 | `user_id` | text | no | References `users.id`. Conversations are private to their owner. |
 | `title` | text | yes | Short title generated after the first turn. |
-| `status` | text | no | `active`, `idle` (past the inactivity threshold), `expired` (Sandbox destroyed, read-only history), `deleted` (user deleted; purged by retention). |
+| `status` | text | no | `active`, `idle` (no activity for `learning.inactivity_minutes`, default 30 minutes: the transcript becomes eligible for batched learning), `expired` (no activity for `sandbox.expiry_hours`, default 24 hours: the Sandbox has been destroyed, but the conversation stays open and a new Sandbox is created on the next `start_analysis`), `deleted` (user deleted; purged by retention). The two thresholds are independent. The Main Agent, as owner of this table, sets `idle` and `expired` when `last_activity_at` passes each threshold, and sets `active` again on the user's next message. |
 | `last_activity_at` | timestamptz | no | Last user message or turn completion. |
 | `learning_status` | text | no | `none`, `pending` (signals present, batched learning not yet run), `learned` (batched learning ran over all turns up to `learned_through_turn_seq`). |
 | `learned_through_turn_seq` | integer | yes | Last turn sequence included in batched learning. |
@@ -193,7 +194,7 @@ Owner: Main Agent. One user question and everything done to answer it.
 | `reply_to` | jsonb | yes | Context the user's message replies to: a clarification turn id, a job proposal id, or a contested entry id with the chosen meaning. |
 | `user_message_id` | text | no | References `messages.id`. |
 | `answer_message_id` | text | yes | References `messages.id` of the final answer. |
-| `coverage` | jsonb | yes | Coverage statement of the answer: records considered (count, item types), records with no linked evidence, files unreadable (count and reasons), files skipped for budget, truncations. |
+| `coverage` | jsonb | yes | Coverage statement of the answer (see [main-agent.md](main-agent.md#59-coverage)): records considered (count, item types), records truncated or not fetched, records with no linked evidence, files read, unreadable (count and reasons), unsupported (formats), too large, and denied (`denied` also covers not found), budget limits reached, and the time window. |
 | `assumptions` | jsonb | yes | Assumptions disclosed in the answer, each with the knowledge entry id it came from (if any) and, once the next user message has been evaluated, whether it was accepted, objected to, or left without outcome. The entry ids of disclosed learned entries are what the Learner evaluates for implicit confirmation. |
 | `started_at` | timestamptz | no | |
 | `finished_at` | timestamptz | yes | |
@@ -205,14 +206,15 @@ Retention: with its conversation.
 
 ### messages
 
-Owner: Main Agent. The transcript, saved as inference proceeds so that a long answer survives a restart and the user can return later.
+Owner: Main Agent (rows for an Analysis Worker's own loop are written by the worker loop through the same interface, as for `tool_calls`). The transcript, saved as inference proceeds so that a long answer survives a restart and the user can return later.
 
 | Column | Type | Null | Meaning |
 |---|---|---|---|
 | `id` | text | no | Primary key, `msg_` prefix. |
 | `conversation_id` | text | no | References `conversations.id`. |
 | `turn_id` | text | no | References `turns.id`. |
-| `seq` | integer | no | Order within the conversation. Unique with `conversation_id`. |
+| `analysis_job_id` | text | yes | References `analysis_jobs.id`. Set on messages written by an Analysis Worker's loop (including the tool messages for the worker's tool calls); null on the Main Agent's own messages. A worker's transcript is read back by this column. |
+| `seq` | integer | no | Order within the conversation. Unique with `conversation_id`. Worker messages count in the same sequence, so `seq` stays unique and ordered when several workers run in parallel. |
 | `role` | text | no | `user`, `assistant`, `tool`, `system_note` (product-inserted notes such as "background job finished"). The system prompt itself is not stored per message; `prompt_version` records which one was used. |
 | `content` | text | yes | Message text. For tool messages, the tool result envelope as text. |
 | `tool_call_id` | text | yes | For `tool` messages and assistant messages that request a tool: references `tool_calls.id`. |
@@ -241,7 +243,7 @@ Owner: Main Agent (rows for Analysis Worker tool calls are written by the Analys
 | `started_at` | timestamptz | no | |
 | `finished_at` | timestamptz | yes | |
 
-The tool call id doubles as the idempotency key: a retried call with the same id after a restart is not executed twice. Messages written by an Analysis Worker's loop also carry the `analysis_job_id` of their tool calls, so a worker's transcript can be read back. Retention: with its conversation.
+The tool call id doubles as the idempotency key: a retried call with the same id after a restart is not executed twice. The messages of a worker's loop carry the same `analysis_job_id` (see `messages`), so a worker's transcript can be read back. Retention: with its conversation.
 
 ### feedback
 
@@ -262,14 +264,15 @@ A correction also becomes a learning signal (`learning_signals`) and, when the a
 
 ### citations
 
-Owner: Tool Gateway (Citation Registry). Every record, file passage, and knowledge entry an answer may cite. Rows are created when a tool returns the source, before the model writes any text, so the model can only cite what was actually returned.
+Owner: Tool Gateway (Citation Registry). Every record, file passage, and discovered or learned knowledge entry an answer may cite. Rows are created when a tool returns the source, before the model writes any text, so the model can only cite what was actually returned.
 
 | Column | Type | Null | Meaning |
 |---|---|---|---|
 | `id` | text | no | Primary key, `cit_` prefix. Appears in answers as `[cite:<id>]`. |
 | `conversation_id` | text | no | References `conversations.id`. Citation ids are valid only inside their conversation. |
-| `turn_id` | text | no | References `turns.id`. |
-| `tool_call_id` | text | no | References `tool_calls.id` that produced the source. |
+| `turn_id` | text | yes | References `turns.id`. Null only for citations a background job registers when it completes. |
+| `tool_call_id` | text | yes | References `tool_calls.id` that produced the source. Null only for citations a background job registers when it completes. |
+| `background_job_id` | text | yes | References `background_jobs.id`. Set on the file citations a background job registers for its matched passages on completion, before the job's result turn starts; such rows have no turn or tool call. |
 | `kind` | text | no | `record`, `file`, `knowledge`. |
 | `item_type` | text | yes | Record: Aras item type name. File: the item type of the parent item the file was reached through. |
 | `aras_id` | text | yes | Record: the item's Aras id. File: the file's Aras id. |
@@ -277,7 +280,7 @@ Owner: Tool Gateway (Citation Registry). Every record, file passage, and knowled
 | `parent_item_type` | text | yes | File: parent item type. |
 | `parent_aras_id` | text | yes | File: parent item id. |
 | `locator` | jsonb | yes | File: `page`, or `sheet` and `cell_range`, or `slide`, or `section`, plus `char_start` and `char_end` in the extracted text. |
-| `knowledge_entry_id` | text | yes | Knowledge: references `knowledge_entries.id`. |
+| `knowledge_entry_id` | text | yes | Knowledge: references `knowledge_entries.id` of a discovered or learned entry. Cleared (the citation row stays) if the entry is a `user_preference` entry that its owner later deletes. |
 | `knowledge_version` | integer | yes | Knowledge: the entry version that was read. |
 | `knowledge_state` | text | yes | Knowledge: state at time of reading. |
 | `knowledge_confirmation` | text | yes | Knowledge: `unconfirmed` or `independently_confirmed` at time of reading. |
@@ -286,7 +289,7 @@ Owner: Tool Gateway (Citation Registry). Every record, file passage, and knowled
 | `cited_in_answer` | boolean | no | Set when the final answer actually cites it. Default false. |
 | `created_at` | timestamptz | no | |
 
-Keys: index on (`conversation_id`), on (`knowledge_entry_id`) for finding answers that cited an entry. A knowledge entry read again after its state changed receives a new citation id, so each citation records the state the answer relied on. Retention: with its conversation. Opening a citation re-checks access through Aras; the row is a pointer, not a permission.
+Keys: index on (`conversation_id`), on (`knowledge_entry_id`) for finding answers that cited an entry. A knowledge entry read again after its version, state, or confirmation changed receives a new citation id, so each citation records what the answer relied on; the registry's dedupe key is the entry id with its version, state, and confirmation. The confidence shown with a knowledge citation is not stored: it is computed from the entry's layer, kind, and derivation method together with the `knowledge_state` and `knowledge_confirmation` kept on the citation row (see [knowledge-and-learning.md](knowledge-and-learning.md#41-knowledge-entry-schema)). Retention: with its conversation. Opening a citation re-checks access through Aras; the row is a pointer, not a permission.
 
 ### citation_sets
 
@@ -336,11 +339,10 @@ Owner: Tool Gateway (Throttle). The budget consumed by one turn, and the sub-bud
 | `analysis_job_id` | text | yes | References `analysis_jobs.id`. |
 | `background_job_id` | text | yes | References `background_jobs.id`. |
 | `parent_budget_id` | text | yes | References `question_budgets.id`: a worker's share draws on its turn's budget. |
-| `limits` | jsonb | no | Limits in force when the budget was created (`max_queries`, `max_rows`, `max_bytes`, `max_files`, `max_wall_seconds`). |
+| `limits` | jsonb | no | Limits in force when the budget was created (`max_queries`, `max_rows`, `max_bytes`, `max_wall_seconds`). |
 | `queries_used` | integer | no | |
 | `rows_used` | integer | no | |
 | `bytes_used` | bigint | no | Bytes of AML results and file text fetched. |
-| `files_used` | integer | no | Files read. |
 | `wall_seconds_used` | integer | no | |
 | `exhausted_reason` | text | yes | Which limit was reached, if any. |
 | `created_at`, `updated_at` | timestamptz | no | |
@@ -358,9 +360,9 @@ Owner: File Service. The extracted text of vault files users have read, keyed by
 | `format` | text | no | `pdf`, `docx`, `xlsx`, `pptx`, `txt`, `csv`, `html`, `xml`, or `other`. Detected from content, not only the extension. |
 | `byte_size` | bigint | yes | As reported by Aras or measured on download. |
 | `checksum` | text | yes | Aras checksum where available; otherwise a hash computed on download. |
-| `extraction_status` | text | no | `ok`, `partial` (some pages had no text, or the text was truncated at the extracted-size limit), `unreadable` (no usable text), `unsupported`, `failed`. |
-| `status_reason` | text | yes | `no_text_layer`, `encrypted`, `corrupt`, `extraction_timeout`, `extraction_failed`, `truncated`, `file_too_large` (see [file-service.md](file-service.md)). Shown in coverage. |
-| `extractor_version` | text | no | Version of the extraction logic. A newer extractor may re-extract rows whose status is not `ok`. |
+| `extraction_status` | text | no | `ok`, `partial` (some pages had no text, or the text was truncated at the extracted-size limit), `unreadable` (no usable text), `unsupported`, `too_large` (the file is over the size limit; stored with `byte_size` and no text), `failed`. |
+| `status_reason` | text | yes | `no_text_layer`, `encrypted`, `corrupt`, `extraction_timeout`, `extraction_failed`, `truncated` (status `partial`), `file_too_large` (status `too_large`) (see [file-service.md](file-service.md)). Shown in coverage. |
+| `extractor_version` | text | no | Version of the extraction logic. A row whose version is older than `file_service.min_extractor_version` is re-extracted on its next use, whatever its status (see [file-service.md](file-service.md#56-retention-and-eviction)). |
 | `page_count` | integer | yes | Pages, slides, or sheets, by format. |
 | `char_count` | integer | yes | |
 | `text` | text | yes | Full extracted text, with segment boundaries recorded in `file_text_segments`. |
@@ -403,7 +405,7 @@ Owner: Analysis Worker and Sandbox. One Sandbox per conversation that needed hea
 | `expires_at` | timestamptz | no | Moves with conversation activity. |
 | `destroyed_at` | timestamptz | yes | |
 
-Retention: row kept 30 days after destruction for audit (**Proposed**), then deleted. Sandbox contents are never kept after destruction.
+Retention: row kept 30 days after destruction for audit (**Proposed**), then deleted unless an `analysis_jobs` row still references it, in which case it is kept while that job is kept. Sandbox contents are never kept after destruction.
 
 ### sandbox_files
 
@@ -412,14 +414,14 @@ Owner: Analysis Worker and Sandbox. The manifest of every file the Tool Gateway 
 | Column | Type | Null | Meaning |
 |---|---|---|---|
 | `sandbox_id` | text | no | References `sandboxes.id`. Part of primary key. |
-| `path` | text | no | Path inside the Sandbox data area. Part of primary key. |
+| `path` | text | no | Path inside the Sandbox: in the read-only data area for files the Tool Gateway wrote (`origin` `aml` or `file_text`), and under the job's writable working area (`work/<job id>/`) for `python_output`. Part of primary key. |
 | `origin` | text | no | `aml`, `file_text`, `python_output`. |
 | `tool_call_id` | text | yes | References `tool_calls.id` that wrote it. |
 | `analysis_job_id` | text | yes | References `analysis_jobs.id`. |
 | `format` | text | no | For example `jsonl`, `csv`, `txt`, `json`, `png`. |
 | `rows` | integer | yes | Records written, for AML results. |
 | `bytes` | bigint | no | |
-| `citation_ids` | jsonb | yes | First and last citation id for the rows or segments in the file. |
+| `citation_count` | integer | yes | Number of citations the rows or segments in the file carry. The citations themselves are not listed here: every row of an AML result file carries its own `_cite` field, and each file text has a segment map. |
 | `citation_set_id` | text | yes | References `citation_sets.id` for AML result files. |
 | `truncated` | boolean | no | True if a limit stopped the fetch early. |
 | `manifest_entry` | jsonb | no | The entry written to `data/manifest.json` for this file, kept so the manifest can be rebuilt. |
@@ -436,7 +438,7 @@ Owner: Analysis Worker and Sandbox. One bounded job handed by the Main Agent to 
 | `id` | text | no | Primary key, `anj_` prefix. |
 | `turn_id` | text | no | References `turns.id`. |
 | `conversation_id` | text | no | References `conversations.id`. |
-| `sandbox_id` | text | no | References `sandboxes.id`. |
+| `sandbox_id` | text | yes | References `sandboxes.id`. Cleared only if the Sandbox row is removed outside the retention purge, which keeps a Sandbox row while a job references it. |
 | `start_tool_call_id` | text | no | References the Main Agent's `start_analysis` call in `tool_calls`. |
 | `brief` | jsonb | no | The job brief as defined in [analysis-worker-and-sandbox.md](analysis-worker-and-sandbox.md). |
 | `status` | text | no | `queued` (waiting for a free worker slot), `running`, `completed`, `failed` (including reason `interrupted` after a service restart), `cancelled` (by the user), `budget_exhausted` (budget share or wall time used up). |
@@ -452,16 +454,15 @@ Retention: with its conversation.
 
 ### config_items
 
-Owner: Discovery. The current discovered definition of every Aras configuration element the product reads: item types, properties, relationship types, lists and their values, life cycle maps and states, workflow maps and activities, methods (metadata only, not executed), and forms. Readable by Knowledge Service, Query Analyzer, and the `schema_describe` tool.
+Owner: Discovery. The current discovered definition of every Aras configuration item the product reads: item types, relationship types, lists, life cycle maps, workflow maps, methods (metadata only, not executed), and forms. Properties, list values, life cycle states and transitions, and workflow activities and paths are not rows of their own: each sits inside the `definition` of its parent configuration item with its own Aras id and name (see [discovery.md](discovery.md)). Readable by Knowledge Service, Query Analyzer, and Discovery's `schema_describe` handler.
 
 | Column | Type | Null | Meaning |
 |---|---|---|---|
 | `id` | text | no | Primary key. |
-| `config_type` | text | no | `item_type`, `property`, `relationship_type`, `list`, `list_value`, `lifecycle_map`, `lifecycle_state`, `lifecycle_transition`, `workflow_map`, `workflow_activity`, `workflow_path`, `method`, `form`. |
+| `config_type` | text | no | Item-level types only: `item_type`, `relationship_type`, `list`, `lifecycle_map`, `workflow_map`, `method`, `form`. |
 | `aras_id` | text | no | The configuration item's Aras id. Unique with `config_type`. |
 | `name` | text | no | Name as defined in Aras. |
 | `label` | text | yes | Display label, if any. |
-| `parent_config_id` | text | yes | References `config_items.id` (for example a property's item type, a list value's list) (**Proposed**). |
 | `modified_on` | text | yes | Aras modification stamp exactly as reported. Compared for change detection. |
 | `definition` | jsonb | no | Normalised definition: for a property, its data type, data source, length, whether required, and whether computed or federated where discoverable; for a relationship type, its source and related types; and so on (see [discovery.md](discovery.md)). |
 | `definition_hash` | text | no | Hash of the normalised definition, so a changed stamp with an unchanged definition is not treated as a change. |
@@ -471,7 +472,7 @@ Owner: Discovery. The current discovered definition of every Aras configuration 
 | `last_run_id` | text | no | References `discovery_runs.id`. |
 | `created_at`, `updated_at` | timestamptz | no | |
 
-Retention: current state only (the product keeps no history of Aras configuration). Rows with `deleted_at` older than 30 days and no dependent non-retired knowledge are purged.
+There is no parent column: configuration below the item level is reached through the parent's `definition`, and knowledge refers to it through `knowledge_dependencies.sub_element_id` and `sub_element_kind`. Retention: current state only (the product keeps no history of Aras configuration). Rows with `deleted_at` older than 30 days that no `knowledge_dependencies` row references (including the rows of retired entries) are purged; a referenced row is kept.
 
 ### discovery_runs
 
@@ -483,7 +484,7 @@ Owner: Discovery.
 | `triggered_by_user_id` | text | no | References `users.id`; Discovery runs as the user whose session triggered it. |
 | `reason` | text | no | `initial`, `conversation_start`, `sign_in`, `manual_refresh`, `inconsistency_check` (an early check when Aras or the Query Analyzer reports something inconsistent with the stored schema) (see [discovery.md](discovery.md)). |
 | `status` | text | no | `running`, `completed`, `failed`, `skipped` (a recent check made it unnecessary). |
-| `items_listed`, `items_new`, `items_modified`, `items_renamed`, `items_deleted` | integer | yes | Counts for the run. |
+| `items_listed`, `items_new`, `items_modified`, `items_renamed`, `items_deleted`, `items_not_visible` | integer | yes | Counts for the run. `items_not_visible` counts items that failed with a permission error rather than not-found and were therefore not treated as deleted (see [discovery.md](discovery.md)). |
 | `invalidation_applied` | boolean | no | Whether the Knowledge Service has applied this run's change set; lets a crash between discovery and invalidation be recovered on restart. |
 | `started_at` | timestamptz | no | |
 | `finished_at` | timestamptz | yes | |
@@ -518,7 +519,7 @@ Owner: Knowledge Service. Every knowledge entry in every layer. The field semant
 | `state_changed_at` | timestamptz | no | Last state transition. |
 | `last_used_at` | timestamptz | yes | Last time it was read into a conversation. Recorded for a future decay policy; not acted on in MVP. |
 
-Confidence (`high`, `medium`, `low`) is not stored; it is computed on read from layer, kind, derivation method, state, and confirmation status (see [knowledge-and-learning.md](knowledge-and-learning.md#41-knowledge-entry-schema)). Keys: index on (`layer`, `state`), on (`owner_user_id`), and a text index over `title`, `aliases`, and `description` for index matching. Retention: entries are never deleted, only retired, except `user_preference` entries, which are deleted when their owner deletes them, and `product_skill` rows of superseded product versions, which are replaced on upgrade.
+Confidence (`high`, `medium`, `low`) is not stored; it is computed on read from layer, kind, derivation method, state, and confirmation status (see [knowledge-and-learning.md](knowledge-and-learning.md#41-knowledge-entry-schema)); for a citation, the state and confirmation inputs are the ones stored on the citation row. Keys: index on (`layer`, `state`), on (`owner_user_id`), and a text index over `title`, `aliases`, and `description` for index matching. Retention: entries are never deleted, only retired, except `user_preference` entries, which are deleted when their owner deletes them (citations that point to a deleted preference have their `knowledge_entry_id` cleared at that moment). `product_skill` entries are never deleted either: on upgrade each shipped skill is upserted by skill id (a new `version` if its text changed, `product_version` updated) and a skill no longer shipped is retired with `retired_reason = product_upgrade`.
 
 ### knowledge_entry_versions
 
@@ -541,18 +542,20 @@ Owner: Knowledge Service. The configuration elements an entry depends on. This t
 
 | Column | Type | Null | Meaning |
 |---|---|---|---|
-| `entry_id` | text | no | References `knowledge_entries.id`. Part of primary key. |
-| `config_item_id` | text | no | References `config_items.id`. Part of primary key. |
+| `id` | text | no | Primary key. |
+| `entry_id` | text | no | References `knowledge_entries.id`. |
+| `config_item_id` | text | yes | References `config_items.id`. Null only if the row was removed outside the retention purge, which keeps any `config_items` row that a dependency references; the copied `aras_id` and `name_at_link` below remain. |
 | `sub_element_id` | text | yes | Aras id of a sub-element inside the configuration item's definition (for example one list value or lifecycle state), when the dependency is that narrow. |
-| `config_type` | text | no | The configuration type, copied for readability. |
+| `sub_element_kind` | text | yes | Set when `sub_element_id` is set: `property`, `list_value`, `lifecycle_state`, `lifecycle_transition`, `workflow_activity`, or `workflow_path`. |
+| `config_type` | text | no | The configuration item's type (an item-level `config_items.config_type`), copied for readability. |
 | `dependency_type` | text | no | `derived_from` (discovered entries: the source configuration the entry was derived from) or `refers_to` (learned entries: the configuration element a term maps to). |
-| `aras_id` | text | no | Copied for readability and for detecting deletion. |
-| `name_at_link` | text | no | Element name when the link was made; a different current name means a rename. |
+| `aras_id` | text | no | The configuration item's Aras id, copied for readability and for detecting deletion. |
+| `name_at_link` | text | no | Name of the configuration item (or of the sub-element, when `sub_element_id` is set) when the link was made; a different current name means a rename. |
 | `modified_on_at_link` | text | yes | Modification stamp when the link was made. |
 | `definition_hash_at_link` | text | yes | |
 | `created_at` | timestamptz | no | |
 
-Retention: with its entry.
+Keys: unique (`entry_id`, `aras_id`, `sub_element_id`), with a missing sub-element counted as one value, so an entry can depend on several sub-elements of the same configuration item; index on (`config_item_id`). Retention: with its entry.
 
 ### knowledge_provenance
 
@@ -568,10 +571,10 @@ Owner: Knowledge Service. Where each piece of an entry came from.
 | `turn_id` | text | yes | |
 | `user_id` | text | yes | The person who taught it (the teacher). |
 | `discovery_run_id` | text | yes | |
-| `learning_run_id` | text | yes | References `learning_runs.id`. |
+| `learning_run_id` | text | yes | References `learning_runs.id`; null for events that no learning run made (for example `derived` and `product_shipped`). A `learning_runs` row that any provenance row references is kept. |
 | `created_at` | timestamptz | no | |
 
-Retention: with its entry.
+Learning signals map to provenance events: `explicit_teaching` to `taught`, `correction` to `inferred_from_correction`, `retried_question` to `inferred_from_retry`, and `empty_result` to `inferred_from_empty_result`. Retention: with its entry.
 
 ### knowledge_confirmations
 
@@ -618,7 +621,7 @@ Owner: Knowledge Service. Every state change of every entry, for explanation and
 | `id` | text | no | Primary key. |
 | `entry_id` | text | no | References `knowledge_entries.id`. |
 | `from_state`, `to_state` | text | no | |
-| `trigger` | text | no | For example `config_renamed`, `config_deleted`, `config_changed_rederived`, `user_correction`, `analyzer_failure`, `user_contradiction`, `independent_confirmation`, `verified`, `merged`, `clarified`. |
+| `trigger` | text | no | For example `config_renamed`, `config_deleted`, `config_changed_rederived`, `user_correction`, `analyzer_failure`, `user_contradiction`, `verified`, `merged`, `clarified`. An independent confirmation changes `confirmation_status`, not the state, so it is recorded in `knowledge_confirmations` and not here. |
 | `detail` | jsonb | yes | Ids of the configuration item, feedback, tool call, or contradiction involved. |
 | `created_at` | timestamptz | no | |
 
@@ -656,7 +659,7 @@ Owner: Learner.
 | `model_call_ids` | jsonb | yes | |
 | `started_at`, `finished_at` | timestamptz | | `finished_at` nullable. |
 
-Retention: 180 days (**Proposed**).
+Retention: 180 days (**Proposed**), except that a run that any `knowledge_provenance` row references is kept.
 
 ### background_jobs
 
@@ -668,12 +671,12 @@ Owner: Background Jobs. Long-running work: user-confirmed full-text scans and ba
 | `kind` | text | no | `full_text_scan` or `batched_learning`. |
 | `requested_by_user_id` | text | yes | References `users.id`. Required for `full_text_scan`; the job acts only as this user. |
 | `conversation_id`, `turn_id` | text | yes | Where the job was proposed and where its result is delivered. |
-| `proposal` | jsonb | yes | `full_text_scan`: what will be searched, the candidate file set description, estimated file count and duration, and the plain-language summary shown to the user. |
+| `proposal` | jsonb | yes | `full_text_scan`: what will be searched, the candidate file set description, and the plain-language summary shown to the user. |
 | `status` | text | no | `proposed`, `queued`, `running`, `paused`, `completed`, `failed`, `cancelled`, `declined`, `expired` (see [background-jobs.md](background-jobs.md#51-job-states)). Batched learning jobs start in `queued`. |
 | `confirmed_at` | timestamptz | yes | Required before a `full_text_scan` leaves `proposed`. |
 | `decided_at` | timestamptz | yes | When the user confirmed or declined. |
 | `proposal_expires_at` | timestamptz | yes | After this a proposal moves to `expired`. |
-| `estimate` | jsonb | yes | Estimated candidate files, queries, and duration shown in the proposal. |
+| `estimate` | jsonb | yes | The estimate shown in the proposal: `candidate_files`, `cached_files`, `expected_duration`, and `query_load`, as returned by `start_background_job` (see [tool-catalog.md](tool-catalog.md#start_background_job)). |
 | `budget_id` | text | yes | References `question_budgets.id` (scope `background_job`). |
 | `progress` | jsonb | yes | Items done, items total, current phase. |
 | `result` | jsonb | yes | Summary, matched files and passages (as citation ids), coverage. |
@@ -694,7 +697,7 @@ Owner: Background Jobs. Units of work inside a job (for full-text scans, one row
 | `item_key` | text | no | For example the file's Aras id. Part of primary key. |
 | `status` | text | no | `pending`, `matched`, `done` (read, no match), `skipped`, `denied` (Aras refused access), `unreadable`, `failed`. |
 | `attempts` | integer | no | |
-| `outcome` | jsonb | yes | Match count, locators and short snippets of matching passages with their citation ids, or the read status. |
+| `outcome` | jsonb | yes | Match count, locators and short snippets of matching passages, or the read status. Citation ids do not exist at this point: the job registers its citations when it completes and lists them in `background_jobs.result`. |
 | `updated_at` | timestamptz | no | |
 
 Retention: with its job.
@@ -732,7 +735,7 @@ Owner: Audit and progress. Append-only record of security-relevant and data-acce
 | `occurred_at` | timestamptz | no | |
 | `event_type` | text | no | One of the closed catalogue in [audit-and-progress.md](audit-and-progress.md#51-audit-event-catalogue), for example `auth.sign_in`, `aras.query`, `aras.query_rejected`, `file.access`, `sandbox.write`, `job.confirmed`, `credential.dropped`, `knowledge.state_changed`. |
 | `user_id` | text | yes | Acting user. |
-| `component` | text | no | Component name from the canon. |
+| `component` | text | no | Component name as listed in the [architecture overview](../architecture/overview.md). |
 | `conversation_id`, `turn_id`, `tool_call_id`, `analysis_job_id`, `background_job_id` | text | yes | Correlation. |
 | `outcome` | text | no | `ok`, `rejected`, `denied`, `failed`. |
 | `query_fingerprint` | text | yes | For `aras.query` events: the AML hash with literal values removed. |
@@ -763,7 +766,7 @@ Retention: **Proposed default** 7 days.
 | Data | Default retention | Key |
 |---|---|---|
 | Conversations, turns, messages, tool calls, citations, feedback, analysis jobs, question budgets | 180 days after last activity, or on user deletion | `retention.conversation_days` |
-| Sandbox contents | Until the conversation expires (24 hours inactivity) | `sandbox.expiry_hours` |
+| Sandbox contents | Until the Sandbox expires after 24 hours of conversation inactivity (the conversation itself stays) | `sandbox.expiry_hours` |
 | Extracted file text | 90 days after last use | `file_service.retention_days_unused` |
 | Knowledge entries | Never deleted; retired | none |
 | Aras and job credentials | Session or job lifetime only | none |
@@ -776,8 +779,8 @@ All defaults are **Proposed**.
 ## 8. Behaviour
 
 1. **Migrations.** The schema has a version number. On start, the service applies pending forward migrations in one transaction per migration before accepting traffic. Downgrades are not supported; a rollback restores a backup.
-2. **Retention purge.** A daily scheduled task (not a `background_jobs` row) deletes rows past retention, in dependency order (children first), in batches, and records counts in a `retention.purged` audit event.
-3. **Product skill load.** On start, shipped product skills replace `knowledge_entries` rows with `layer = product_skill` whose `product_version` differs from the running version.
+2. **Retention purge.** A daily scheduled task (not a `background_jobs` row) deletes rows past retention, in dependency order (children first), in batches, and records counts in a `retention.purged` audit event. A row that another row still references is kept even past its retention, where the owning table says so (`config_items`, `learning_runs`, `sandboxes`).
+3. **Product skill load.** On start, each shipped product skill is upserted into `knowledge_entries` (`layer = product_skill`) by skill id: if its text changed, the entry gets a new `version` (the previous content goes to `knowledge_entry_versions` with `changed_by = product_upgrade`) and `product_version` is updated. A `product_skill` entry whose skill is no longer shipped is retired with `retired_reason = product_upgrade`. Entry ids stay the same, so citations and references remain valid.
 4. **Transactions.** Each tool call's bookkeeping (tool call row, citations, budget update, audit event) commits atomically. Transcript messages commit as each is produced, so that a crash loses at most the in-flight model step.
 
 ## 9. Configuration
@@ -811,6 +814,7 @@ All defaults are **Proposed**.
 - Credentials are encrypted at rest and read only by the Tool Gateway.
 - Conversations are private to their owner; the service enforces `conversations.user_id` on every read through the Chat App API. Operators with database access can read them, which the deployment documentation must state (see [security and permissions](../architecture/security-and-permissions.md)).
 - Extracted file text is shared across users only as a cache of immutable bytes; it is never served without a fresh Aras access check as the requesting user.
+- Beyond transcripts and extracted file text, Aras-derived values are kept in four other places: AML text, including literal criteria values, in `audit_events.detail` (365 days by default, redactable or omitted through `audit.store_aml_text`, and it survives conversation deletion); short passage snippets in `background_job_items.outcome` (with the conversation); progress lines, which may summarise data the user was allowed to see (7 days); and record and file keyed names in `citations` (with the conversation).
 - Shared knowledge must not contain data values ("how, never what"); in MVP this relies on the product prompts and the Learner's checks (see [knowledge-and-learning.md](knowledge-and-learning.md)).
 
 ## 13. Observability
@@ -819,13 +823,13 @@ Database size per table, retention purge counts, migration version, connection p
 
 ## 14. MVP versus deferred
 
-| Deferred item | Effect on the schema when added |
+| Roadmap item | Effect on the schema when added |
 |---|---|
 | Answer and query result caching | A cache table keyed by normalised query and permission scope. |
 | Product-kept history of Aras data | Change-history tables; none exist in MVP. |
-| Saved questions, dashboards, scheduled reports | Tables for saved questions and schedules. |
+| Saved questions and dashboards, Scheduled reports | Tables for saved questions and schedules. |
 | Vector index for knowledge or files | Embedding columns or a separate index; none in MVP. |
-| Knowledge decay | Uses `knowledge_entries.last_used_at`, already recorded. |
+| Age out unused knowledge | Uses `knowledge_entries.last_used_at`, already recorded. |
 | Multiple Aras instances | An instance key on users, configuration, knowledge, and file text. |
 
 See the [roadmap](../product/roadmap.md) for why each is deferred.

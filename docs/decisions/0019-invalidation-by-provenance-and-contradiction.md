@@ -11,10 +11,10 @@ Learned knowledge goes stale when the configuration it depends on changes ([ADR 
 
 There is no deployment hook in the MVP. Invalidation works from provenance and from contradiction:
 
-- **Discovery-inferred learnings** record the exact configuration items, and their modification stamps, they were derived from. When a source changes they are re-derived automatically; when the source is deleted they are retired.
+- **Discovered entries inferred by the model** (not Learned entries) record the exact configuration items, and their modification stamps, they were derived from. When a source changes they are re-derived automatically; when the source is deleted they are retired.
 - **Conversation-formed learnings** record the configuration elements they map to (for example the lifecycle state a definition refers to). A renamed or removed element makes them uncertain.
 - **Contradiction:** a user correction on an answer that cited a learned entry makes it uncertain. A query built from an entry failing static analysis also makes it uncertain. Disagreement between users makes it contested, and the agent asks which meaning the user intends.
-- **States:** confirmed, uncertain, contested, retired. Uncertain entries stay usable but are verified first (re-derived, or confirmed with the user).
+- **States:** confirmed, uncertain, contested, retired. Uncertain entries stay usable but are verified first (a Discovered entry is re-derived; a Learned entry is checked against the configuration or confirmed with the user).
 
 Learning may be automatic; there is no mandatory human approval gate.
 

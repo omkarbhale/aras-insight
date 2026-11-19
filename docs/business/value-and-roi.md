@@ -6,7 +6,7 @@ This document sets out the business case for Aras Insight, the value drivers beh
 
 Companies already pay for the data in Aras: the licences, the administration, and the effort of everyone who records changes, approvals, and reports. Much of the return on that investment is lost when the data is hard to question. Analysts and power users spend their time answering other people's data questions; managers commission reports that are stale on arrival; engineers search change history and attachments by hand; decisions wait for evidence or proceed without it.
 
-Aras Insight turns that stored data into answers on demand, at each user's own access level, with citations that make the answers usable for decisions. It adds no new data store of business data, no new access policy, and no write path into Aras, which keeps the cost of adopting it and the risk of running it low.
+Aras Insight turns that stored data into answers on demand, at each user's own access level, with citations that make the answers usable for decisions. It keeps no copy or history of business data beyond conversation transcripts and the extracted text of files that users have read (both in the customer's own database), adds no new access policy, and has no write path into Aras, which keeps the cost of adopting it and the risk of running it low.
 
 ## Value drivers
 
@@ -45,7 +45,7 @@ A simple ROI view for a period is then: estimated time saved multiplied by a loa
 
 ## The cost side
 
-Because Aras Insight is self-hosted, most running costs are the customer's own infrastructure and model usage. The product's licence or subscription is separate; see [pricing options](pricing-options.md).
+Because Aras Insight is self-hosted, most running costs are the customer's own infrastructure and model usage. Any licence or subscription cost depends on the pricing decision, which is open; see [pricing options](pricing-options.md).
 
 | Cost | What drives it | Notes |
 |---|---|---|

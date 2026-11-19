@@ -22,7 +22,7 @@ Discovery runs as each user, with that user's credentials, through the Tool Gate
 ## Consequences
 
 - No new privileged identity.
-- Different users could, in principle, see different configuration. How the discovered layer handles this is owned by [discovery.md](../specs/discovery.md); a proposal is in [security and permissions](../architecture/security-and-permissions.md#the-user-level-access-guarantee).
+- Different users could, in principle, see different configuration. How the discovered layer handles this is specified in [discovery.md](../specs/discovery.md); a proposal is in [security and permissions](../architecture/security-and-permissions.md#the-user-level-access-guarantee).
 - That configuration is readable by ordinary users must be verified per Aras version ([deployment and operations](../architecture/deployment-and-operations.md#aras-version-compatibility-to-verify)).
 - Changes are detected at the next check rather than instantly; there is no deployment hook ([ADR 0019](0019-invalidation-by-provenance-and-contradiction.md)).
 

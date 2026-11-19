@@ -9,7 +9,7 @@ Some trend questions need history Aras itself does not keep (for example, values
 
 ## Decision
 
-The product keeps no history of Aras data, at least for now. Trends come from the data the agent can access in Aras: item generations, workflow and lifecycle histories, timestamps.
+The product keeps no history of Aras data, at least for now. Trends come from the data the agent can access in Aras: typically item generations, workflow and lifecycle run histories, and timestamps, as far as the installation retains them (to verify per version).
 
 ## Alternatives considered
 
@@ -20,7 +20,7 @@ The product keeps no history of Aras data, at least for now. Trends come from th
 ## Consequences
 
 - Trend questions are limited to what Aras retains; answers say so in coverage when history is missing.
-- The Database holds no business-data history; its only copies of Aras content are extracted file text and what appears in transcripts.
+- The Database holds no business-data history; its only copies of Aras content are extracted file text, the excerpts and record names kept with citations, the text of queries kept in audit records, short snippets and progress lines kept for background jobs, and what appears in transcripts. Each has its own retention (see [Persistence](../specs/persistence.md)).
 
 ## Related
 

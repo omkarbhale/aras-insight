@@ -22,8 +22,8 @@ flowchart LR
 
 | Phase | Activities | Output |
 |---|---|---|
-| P0 Preparation | Security review of the architecture and data flow; choice of environment (a production-mirroring test environment, or production with conservative throttling); model endpoint approval; selection of pilot users; agreement on acceptance questions, success criteria, and throttling limits; baseline timing of how long the acceptance questions take today. | Signed-off pilot charter. |
-| P1 Installation | Deployment on company infrastructure ([deployment and operations](../architecture/deployment-and-operations.md)); model slot configuration; connection to Aras; first discovery run; smoke test as two users with different permissions. | Running system; discovery complete. |
+| P0 Preparation | Security review of the architecture and data flow; choice of environment (a production-mirroring test environment, or production with conservative throttling); model endpoint approval; sign-in client registration and the renewable-token check with the Aras owners; selection of pilot users; agreement on acceptance questions, success criteria, and throttling limits; baseline timing of how long the acceptance questions take today. | Signed-off pilot charter. |
+| P1 Installation | Deployment on company infrastructure ([deployment and operations](../architecture/deployment-and-operations.md)); model slot configuration; connection to Aras; the Aras version compatibility checks; first discovery run; smoke test as two users with different permissions. | Running system; discovery complete. |
 | P2 Acceptance | The acceptance questions below, run one at a time with the people who proposed them; load observation on the Aras server. | Acceptance results per question. |
 | P3 Pilot use | Pilot users ask their own questions in daily work. Corrections feed learning. Weekly check-ins. | Usage and quality records. |
 | P4 Review | Metrics report from the product's records; user interviews; security and operations review; go or no-go decision. | Pilot report and recommendation. |
@@ -32,7 +32,8 @@ flowchart LR
 
 | Area | Requirement |
 |---|---|
-| Aras environment | Access to a test environment that mirrors production configuration and representative data, or approval to use production with agreed throttling limits. Aras Insight reads only; it needs no Aras administrator account. |
+| Aras environment | Access to a test environment that mirrors production configuration and representative data, or approval to use production with agreed throttling limits. Aras Insight reads only; it needs no Aras administrator account at run time. |
+| Aras sign-in | An Aras administrator registers Aras Insight as a sign-in client once. The Aras owners also confirm whether the target Aras version's sign-in issues renewable tokens for background jobs; where it does not, full-text scans run only while the user's own session is live. |
 | Users | Ten to twenty pilot users across at least four roles, each using their normal Aras account. |
 | Infrastructure | A server or virtual machine able to run containers (or VMs, if the full-VM Sandbox option is required), with network access to the Aras server and vault, and to the model endpoints. |
 | Database | A PostgreSQL instance. |
@@ -49,7 +50,7 @@ The acceptance set has two parts. Part A is questions asked of Aras Insight; eac
 
 | # | Question (generic form) | What a pass looks like |
 |---|---|---|
-| A1 | Which five components appear most often on change orders that ran late last quarter, and what failure modes do the reports linked to them describe? | Asks for or states a definition of "late"; ranking with computed counts; failure modes with file citations; coverage including unreadable files; association, not causation. |
+| A1 | Which five parts appear most often on change orders that finished late last quarter, and what do the linked engineering reports say went wrong with them? | Asks for or states a definition of "late"; ranking with computed counts; failure modes with file citations; coverage including unreadable files; association, not causation. |
 | A2 | Why was a given change, or a given kind of change, delayed? (where the reason is not in any structured field) | Reasons drawn from long text fields, sign-off comments, and files, each cited; says when no recorded reason exists. |
 | A3 | What keeps driving new revisions of a given part or assembly? | Revision history correlated with linked change and problem records and with root-cause documents; record and file citations. |
 | A4 | Find what our technical documents say about a given topic, together with the records they relate to. | Combined answer from records and file text; unanchored search through names and descriptions, and a proposed background full-text scan if needed, run only on confirmation. |

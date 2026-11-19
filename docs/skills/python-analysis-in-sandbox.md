@@ -17,6 +17,37 @@ The text below is the skill as the agent receives it.
 
 You analyse data by writing Python and running it with `python_run`. Data reaches the Sandbox only through `aml_fetch` (records) and `file_fetch` (extracted file text); each call tells you the path of the file it wrote. The Sandbox has no network. Nothing you write in it leaves it except through `report_progress` and `submit_report`.
 
+### Sandbox layout and fields
+
+Proposed: the layout and field names below are the ones proposed in [Analysis Worker and Sandbox](../specs/analysis-worker-and-sandbox.md#53-how-the-tool-gateway-writes-into-the-sandbox) and the [tool catalog](../specs/tool-catalog.md). If a tool result reports a different path or field, trust the tool result.
+
+Paths are relative to the Sandbox root. The Sandbox has two areas:
+
+- `data/` is read-only to your code. Only the Tool Gateway writes there, when you call `aml_fetch` or `file_fetch`. Every job in the conversation can read it, so data fetched for an earlier question may already be there.
+- `work/<job id>/` is your job's own writable area. `python_run` code can write only here.
+
+A path outside these two areas, a malformed path, or an `aml_fetch` `name` that already exists is rejected with `PATH_INVALID`.
+
+| Path | Contents |
+|---|---|
+| `data/manifest.json` | One entry for each file a tool wrote: its path, its source, the AML or file id, item type, row count, pages fetched, whether a limit truncated the result, and analyzer warnings |
+| `data/aml/<name>.jsonl` (or `.csv`) | An AML result. `<name>` is the `name` given to `aml_fetch`, or the tool call id. JSON Lines holds one top-level item per line and keeps nested relationships attached to their item; CSV has one row per top-level item and omits relationship data |
+| `data/files/<file id>.txt` | The extracted text of one file |
+| `data/files/<file id>.segments.json` | The segment map of that file: for each segment (a page, sheet, slide, or section) its number, kind, label, start and end character offsets, whether it has no text, and its citation id |
+| `work/<job id>/` | Your intermediate and result files |
+
+Every item in an AML result file, top-level or nested, carries these reserved fields:
+
+| Field | Holds |
+|---|---|
+| `_cite` | The citation id registered for that record |
+| `_type` | The item type name |
+| `_id` | The Aras id |
+| `_keyed_name` | The keyed name, where Aras returns it |
+| `<property>__iso` | For a date property, the date in a normalised form beside the value as Aras returned it, so you do not parse locale formats |
+
+Other property values keep their Aras property names as discovered. `data/manifest.json` lists the files in the Sandbox; it is not the list of Python libraries, which is in your system prompt.
+
 ### Every number comes from code
 
 - Every count, sum, average, median, percentage, duration, and ranking in your report is printed by code you ran. Do not do arithmetic in your head, and do not adjust a number by hand afterwards.
@@ -35,9 +66,9 @@ If the data does not match what the brief expected (fields missing, far more or 
 
 ### Keep citations attached
 
-- Every fetched record carries its citation id; every fetched passage carries its citation id. Keep that field through every filter, join, and grouping.
-- When you produce a ranking or a list, keep, for each entry, the citation ids of the records it rests on, so the report can cite representative evidence.
-- When you find a passage in file text, keep its citation id, not only the file's.
+- Every fetched record carries its citation id in `_cite`, and every segment of a fetched file has its citation id in the file's segment map. Keep `_cite` through every filter, join, and grouping.
+- When you produce a ranking or a list, keep, for each entry, the `_cite` values of the records it rests on, so the report can cite representative evidence.
+- When you find a passage in file text, use the segment map's character offsets to find the segment it lies in, and keep that segment's citation id together with the file id. Citations are issued per segment, not per passage; your report can ask for a finer citation of the passage (the segment's citation id plus a character range).
 
 ### Dates and durations
 
@@ -60,7 +91,7 @@ If the data does not match what the brief expected (fields missing, far more or 
 ### Keep output small
 
 - Print summaries, not raw data. Print at most a few dozen lines per run.
-- Write intermediate results to files in the Sandbox and print their paths and sizes.
+- Write intermediate results to files under `work/<job id>/` and print their paths and sizes.
 - Use `sandbox_read` to read a specific part of a file when you need to see it; read ranges, not whole large files.
 
 ### Check before you report
@@ -75,4 +106,4 @@ If code fails, read the error, fix the cause, and run it again. Do not paper ove
 
 ### Libraries
 
-Use the libraries listed in the Sandbox environment manifest in your brief. If a library you want is not listed, use the standard library. Do not try to install anything.
+Use the libraries listed in the Sandbox environment description in your system prompt. If a library you want is not listed, use the standard library. Do not try to install anything.

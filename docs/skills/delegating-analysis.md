@@ -43,7 +43,7 @@ You never compute aggregates yourself from rows in your context. If a number req
 
 ### Splitting work
 
-- A multi-part question whose parts are independent ("top components behind delays, and the failure modes in their reports") can run as parallel workers, one per part, when the second part does not need the first part's result. When it does, run them in sequence and pass the first report's findings into the second brief.
+- A multi-part question whose parts are independent ("which parts appear most often on late change orders, and what the linked reports say went wrong with them") can run as parallel workers, one per part, when the second part does not need the first part's result. When it does, run them in sequence and pass the first report's findings into the second brief.
 - Do not split one population across several workers to get around a row budget. Budgets apply per question.
 - Prefer one well-scoped worker over several small ones. Start parallel workers only when the parts are genuinely separate.
 
@@ -56,7 +56,7 @@ Fill the analysis job brief completely. A good brief:
 - Names the confirmed schema elements to use.
 - Lists the knowledge entries the worker may rely on, by id, and the skills it needs.
 - States the expected output: which numbers, which ranking, which table, how many examples to cite.
-- States limits: how many files at most, and what to do if the population is larger than expected.
+- States limits as instructions to the worker: how many files it should read at most (this is your instruction in the brief, not a system budget; the system budgets queries, rows, bytes, and time), and what to do if the population is larger than expected.
 
 ### Reading the report
 

@@ -12,6 +12,8 @@
 
 ## Options
 
+The options below are examples of the models that could be chosen, not a closed list.
+
 ### Flat licence (per installation)
 
 One annual fee per Aras installation, unlimited users and questions.
@@ -58,7 +60,7 @@ Independent of the long-term model: a fixed-fee or no-fee pilot for a limited pe
 
 ## Implications of self-hosting
 
-- The customer pays its own **model usage** and **infrastructure**; the vendor price covers software, upgrades, product skills and prompts, and support.
+- The customer pays its own **model usage** and **infrastructure**. What a vendor price would cover (software, upgrades, shipped skills and prompts, support) is part of the open decision; see the questions below.
 - Support for the **full-VM Sandbox option** and for regulated or isolated environments may justify a higher tier.
 - Upgrades ship as new product versions, including new shipped skills; pricing must say whether upgrades are included.
 - Consumption models require the customer to share usage figures from its own environment, which needs agreement on reporting.

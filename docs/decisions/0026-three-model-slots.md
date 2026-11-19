@@ -5,11 +5,11 @@
 
 ## Context
 
-Customers often have internal model infrastructure, want to use the newest available models, and need to switch models without changes to the product. Different work has different needs: the conversation needs a strong model; analysis workers write code and read evidence; background work (batched learning, job summaries) can use a cheaper or internal model.
+Customers often have internal model infrastructure, want to use the newest available models, and need to switch models without changes to the product. Different work has different needs: the conversation needs a strong model; analysis workers write code and read evidence; background work (batched learning, evaluation of disclosed assumptions, and Discovery's model-inferred entries) can use a cheaper or internal model.
 
 ## Decision
 
-The Model Router exposes three configurable model slots: main (Main Agent), worker (Analysis Workers), background (Learner batches and Background Jobs). Each slot points to an endpoint: OpenAI-compatible endpoints plus native clients where useful. There is no embedding model in the MVP. The product assumes reasonably competent models.
+The Model Router exposes three configurable model slots: main (Main Agent), worker (Analysis Workers), background (batched learning, evaluation of disclosed assumptions, and Discovery's model-inferred entries). Each slot points to an endpoint: OpenAI-compatible endpoints plus native clients where useful. There is no embedding model in the MVP. The product assumes reasonably competent models.
 
 ## Alternatives considered
 

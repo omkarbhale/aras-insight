@@ -34,7 +34,7 @@ Each placeholder below is filled by the Main Agent in prose or short lists.
 | `{{knowledge_ids}}` | Ids of knowledge entries to attach |
 | `{{skill_ids}}` | Ids of on-demand skills to attach |
 | `{{expected_output}}` | The results to produce: which numbers, which rankings and their length, which tables, how many cited examples, what explanations to look for and in which sources |
-| `{{job_limits}}` | Maximum files to read, what to do if the population is larger than expected, any priority order |
+| `{{job_limits}}` | Brief-level instructions rather than system limits: how many files at most the worker should read, what to do if the population is larger than expected, any priority order |
 | `{{notes}}` | Anything else the worker must know, such as a known data quirk established earlier in the conversation; otherwise "none" |
 
 ## Full text
@@ -53,7 +53,7 @@ Context from other parts of this question:
 
 ## Definitions
 
-Apply these exactly. If one cannot be applied to the data (for example, the property it names is empty for every record), report that as an issue and say what you did instead.
+Apply these exactly. If one cannot be applied to the data (for example, the property it names is empty for every record), report that as a limitation and say what you did instead.
 
 {{definitions}}
 
@@ -96,32 +96,32 @@ If you reach a limit, stop fetching, analyse what you have, and report the resul
 
 ## Example (illustrative)
 
-A filled brief for one part of a two-part question. All schema names here are illustrative and stand for whatever `schema_describe` returned in the target installation.
+A filled brief for one part of a two-part question. All schema names here are illustrative and stand for whatever `schema_describe` returned in the target installation. Knowledge entries and skills are named by their entry ids; the name in brackets after a skill's id is its entry title.
 
 ````text
 ## Analysis job
 
 The user asked:
-"List the top 5 components behind change order delays last quarter and explain the common failure mode in the associated engineering reports."
+"Which five parts appear most often on change orders that finished late last quarter, and what do the linked engineering reports say went wrong with them?"
 
 Your question:
-Among change orders created in the last quarter that meet the definition of delayed below, rank the parts that appear most often as affected items. For each of the top 5, give how many delayed change orders it appears on, how many change orders in total it appears on in the same period, and the share delayed.
+Among change orders released in the last quarter that meet the definition of late below, rank the parts that appear most often as affected items. For each of the top 5, give how many late change orders it appears on, how many change orders in total it appears on in the same period, and the share that were late.
 
 Context from other parts of this question:
 A second job will read the engineering reports linked to the top 5 parts. It does not need anything from this job except the top 5 list, which the assistant will pass on.
 
 ## Definitions
 
-- Delayed: a change order whose release date (property "Release Date") is later than its target date (property "Target Date"). Source: the user, in this conversation.
+- Late: a change order whose release date (property "Release Date") is later than its target date (property "Target Date"). Source: the user, in this conversation.
 - Last quarter: 1 July to 30 September of this year, in the user's time zone. Source: the user's stored preference for calendar quarters.
 
 ## Scope
 
-Change orders of item type "Express ECO" created from 1 July to 30 September inclusive. Current generation of each change order only. Affected items of any part type. Exclude change orders with no affected items, and count them in coverage.
+Change orders of item type "Express ECO" released from 1 July to 30 September inclusive. Current generation of each change order only. Affected items of any part type. Exclude change orders with no affected items, and count them in coverage.
 
 ## Schema to use
 
-- Item type "Express ECO" (label "Express ECO"): properties "created_on", "release_date" (label "Release Date"), "target_date" (label "Target Date"), "state".
+- Item type "Express ECO" (label "Express ECO"): properties "release_date" (label "Release Date"), "target_date" (label "Target Date"), "state".
 - Relationship "Affected Item" from "Express ECO": property "affected_id" pointing to item type "Part".
 - Item type "Part": properties "item_number", "name".
 
@@ -131,18 +131,18 @@ none
 
 ## Knowledge attached
 
-k-0142 (definition of release date for change orders), k-0087 (affected item relationship usage)
+kn_7Hq2Vx9d (definition of release date for change orders), kn_3Tm8Ls4w (affected item relationship usage)
 
 ## Skills attached
 
-change-management, revisions-and-configurations
+kn_Wb5Tq8Lz (change-management), kn_Rj2Hv7Pc (revisions-and-configurations)
 
 ## Expected output
 
-- Number of change orders in scope, number delayed, number excluded and why.
-- Top 5 parts by number of delayed change orders they appear on, with the three counts and the share for each. Break ties by share delayed.
-- For each of the top 5, cite up to three of the delayed change orders it appears on.
-- The overall share of change orders delayed, for comparison.
+- Number of change orders in scope, number late, number excluded and why.
+- Top 5 parts by number of late change orders they appear on, with the three counts and the share for each. Break ties by share late.
+- For each of the top 5, cite up to three of the late change orders it appears on.
+- The overall share of change orders that were late, for comparison.
 
 ## Limits for this job
 
@@ -152,6 +152,8 @@ No files. If more than 5,000 change orders are in scope, report the count and st
 
 none
 ````
+
+The item type, relationship, and property names in this example (Express ECO, Affected Item, Part, and the properties listed) are illustrative; in a real brief they come from the discovered schema and must be verified against the installation.
 
 ## Open questions
 

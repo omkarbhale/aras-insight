@@ -1,10 +1,10 @@
 # Discovery specification
 
-Status: MVP specification. Owner slice: module specifications. Related: [Knowledge Service and Learner](knowledge-and-learning.md), [Tool Gateway](tool-gateway.md), [Query Analyzer](query-analyzer.md), [Tool catalog](tool-catalog.md), [Persistence](persistence.md), [Architecture overview](../architecture/overview.md).
+Status: MVP specification. Related: [Knowledge Service and Learner](knowledge-and-learning.md), [Tool Gateway](tool-gateway.md), [Query Analyzer](query-analyzer.md), [Tool catalog](tool-catalog.md), [Persistence](persistence.md), [Architecture overview](../architecture/overview.md).
 
 ## 1. Purpose
 
-Aras Insight is never configured by hand for a customer. Everything it knows about an installation's structure comes from Discovery: it reads the Aras configuration as a signed-in user, keeps a current copy of that configuration in the database, detects changes cheaply through modification stamps, and regenerates the discovered knowledge layer whenever the configuration changes.
+No schema or data-model mapping is configured by hand for a customer. Everything Aras Insight knows about an installation's structure comes from Discovery: it reads the Aras configuration as a signed-in user, keeps a current copy of that configuration in the database, detects changes cheaply through modification stamps, and regenerates the discovered knowledge layer whenever the configuration changes.
 
 Three consumers depend on it:
 
@@ -21,7 +21,7 @@ For decision-makers: this is the component that makes the product work on a cust
 1. Read the Aras configuration through the Tool Gateway as a signed-in user. Every Aras user already has configuration read access, so no privileged account is needed.
 2. Store one current record per configuration item with its definition and modification stamp ([config_items](persistence.md#config_items)).
 3. Detect new, modified, renamed, and deleted configuration items by comparing stamps, fetching full definitions only for what changed.
-4. Serve the discovered schema to `schema_describe` and to the Query Analyzer.
+4. Supply the discovered schema to `schema_describe` (served by the Knowledge Service) and to the Query Analyzer.
 5. Generate the discovered knowledge layer: mechanical entries directly, model-inferred entries through the background model slot, and hand them to the Knowledge Service with their derivation sources and stamps.
 6. Emit a change set after every run so the Knowledge Service can re-derive, mark uncertain, or retire dependent entries.
 7. Resolve configuration references (by name or Aras id) for the Learner.
@@ -32,7 +32,7 @@ For decision-makers: this is the component that makes the product work on a cust
 - Discovery reads configuration only, never business data. It does not count items, sample records, or read files.
 - It does not hold credentials; it uses the credential of the user whose activity triggered the run, through the Tool Gateway.
 - It does not write to Aras (the product is read-only).
-- No deployment hook in MVP: Discovery does not receive notifications from Aras deployments; it detects changes by polling stamps at defined moments (section 5.3). The hook is deferred.
+- No deployment hook in MVP: Discovery does not receive notifications from Aras deployments; it detects changes by comparing stamps at defined moments when the product is in use (section 5.3). The hook is deferred.
 - It does not decide what learned knowledge means; it only reports which configuration changed.
 - It does not keep a history of configuration definitions beyond the current one (the product keeps no history of Aras data; configuration history is likewise not kept in MVP).
 
@@ -42,7 +42,7 @@ For decision-makers: this is the component that makes the product work on a cust
 
 | Tool | Caller | Notes |
 |---|---|---|
-| [`schema_describe`](tool-catalog.md#schema_describe) | Main Agent | Served from config_items. Input and output schemas are defined in the tool catalog. Includes for each item type its properties (name, label, data type, list or item reference, required flag), relationship types with related item types, lifecycle states and transitions, workflow maps with activities and paths, and the discovered entries attached to the item type, by id and description. |
+| [`schema_describe`](tool-catalog.md#schema_describe) | Main Agent | Served through the Knowledge Service ([knowledge-and-learning.md](knowledge-and-learning.md)) from config_items, which Discovery reads and keeps current (Get schema, section 3.2). Input and output schemas are defined in the tool catalog. Includes for each item type its properties (name, label, data type, list or item reference, required flag), relationship types with related item types, lifecycle states and transitions, workflow maps with activities and paths, and the discovered entries attached to the item type, by id and description. |
 
 ### 3.2 Internal operations
 
@@ -64,8 +64,8 @@ For decision-makers: this is the component that makes the product work on a cust
 
 ## 4. Data owned
 
-- [config_items](persistence.md#config_items): one row per configuration item. Fields: id; config_type; aras_id; parent_config_id (for configuration items that belong to another, Proposed); name; label; modified_on stamp as read from Aras; definition (structured, includes sub-elements such as properties, list values, states, activities, each with its own Aras id and name); definition_hash; first_seen_at; last_seen_at; deleted_at; last_run_id.
-- [discovery_runs](persistence.md#discovery_runs): one row per run. Fields: id; triggered_by_user_id; reason (initial, conversation_start, sign_in, inconsistency_check, manual_refresh); status (running, completed, failed, skipped); started_at; finished_at; items_listed; items_new; items_modified; items_renamed; items_deleted; invalidation_applied (whether the Knowledge Service has applied this run's change set); error.
+- [config_items](persistence.md#config_items): one row per configuration item, that is, per item type, relationship type, list, life cycle map, workflow map, method, or form (the types read in section 5.1). Fields: id; config_type; aras_id; name; label; modified_on stamp as read from Aras; definition (structured, includes sub-elements such as properties, list values, states, activities, each with its own Aras id and name; sub-elements are not rows of their own); definition_hash; first_seen_at; last_seen_at; deleted_at; last_run_id.
+- [discovery_runs](persistence.md#discovery_runs): one row per run. Fields: id; triggered_by_user_id; reason (initial, conversation_start, sign_in, inconsistency_check, manual_refresh); status (running, completed, failed, skipped); started_at; finished_at; items_listed; items_new; items_modified; items_renamed; items_deleted; items_not_visible (items listed as missing that failed to fetch with a permission error rather than not-found, see section 9); invalidation_applied (whether the Knowledge Service has applied this run's change set); error.
 
 Discovered knowledge entries themselves are stored by the Knowledge Service ([knowledge_entries](persistence.md#knowledge_entries) with kind discovered and derived_from dependencies).
 
@@ -189,12 +189,13 @@ sequenceDiagram
 | Template query rejected by Aras (meta-model differs from the expected version) | Aras error on a template | Missing configuration type in the schema; affected questions may fail validation | Run completes partially with the error recorded; operations must select or update the template set |
 | Background model unavailable | Model Router error | Model-inferred entries missing or stale (uncertain) | Mechanical entries and schema still update; inference retried next run |
 | Crash between config update and invalidation | invalidation_applied not set on a completed run | Some knowledge may be used as confirmed though its source changed | On restart the Knowledge Service re-applies unapplied change sets |
-| Item invisible to the triggering user but visible to others | Direct fetch of a listed-missing item fails with permission rather than not-found | None | Not treated as deleted; recorded on the run (section 9) |
+| Item invisible to the triggering user but visible to others | Direct fetch of a listed-missing item fails with permission rather than not-found | None | Not treated as deleted; counted on the run as `items_not_visible` (section 9) |
 
 ## 9. Security considerations
 
 - **Runs as the user.** Discovery uses the signed-in user's credential through the Tool Gateway, never a service or administrator account, consistent with user-level access only.
 - **Shared schema.** The discovered configuration is stored once per deployment and served to every user. This relies on every Aras user having configuration read access. If an installation restricts some configuration to certain identities, a user could see in `schema_describe` the existence of an item type they cannot query. Querying it still fails in Aras as that user, so no data is exposed, but the existence of the configuration is (see open questions).
+- **Not visible is not deleted.** An item that the listing no longer shows and that then fails to fetch with a permission error, rather than not-found, is not marked deleted: its stored row and the knowledge that depends on it stay as they are, and the item is counted on the run as `items_not_visible`. Only an item that fails with not-found is marked deleted.
 - **No data.** Discovery templates select configuration item types only; the Query Analyzer's read-only enforcement applies to them like to any query.
 - **Method content.** Server method source can contain sensitive logic or embedded constants; by default only names, event bindings, and modification stamps are read; the content is neither read nor hashed (Proposed).
 - **Model inference sees configuration only.** The inference prompt receives definitions, never data rows or files.

@@ -5,7 +5,7 @@
 
 ## Context
 
-Business questions use terms the configuration does not define ("delayed", "recurring", "markup process"). Guessing wrong on an expensive analysis wastes minutes and Aras load. Asking on every cheap lookup is tedious.
+Business questions use terms the configuration does not define ("delayed", "recurring", "design review process"). Guessing wrong on an expensive analysis wastes minutes and Aras load. Asking on every cheap lookup is tedious.
 
 ## Decision
 
@@ -21,7 +21,7 @@ For expensive analysis with a missing definition, the agent asks one quick quest
 
 ## Consequences
 
-- The Main Agent needs a notion of "expensive" (Query Analyzer cost estimates and the configured threshold, [deployment and operations](../architecture/deployment-and-operations.md#configuration-surface)).
+- The Main Agent needs a notion of "expensive", decided by the route: any analysis, background job, many-file read, or high-cost query as reported by the Query Analyzer is expensive, and any direct lookup is cheap ([Main Agent](../specs/main-agent.md)).
 - Suggested definitions must be grounded in discovered configuration.
 - Definitions become learned knowledge, so the question is asked once per organisation, not once per user ([ADR 0020](0020-organisation-wide-learnings-with-disclosed-assumptions.md)).
 

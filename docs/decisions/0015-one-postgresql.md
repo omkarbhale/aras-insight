@@ -22,7 +22,7 @@ One database only: a single PostgreSQL instance holds sessions and transcripts, 
 ## Consequences
 
 - One thing to back up, monitor, and secure.
-- Text search over stored extracted text can use the database's own capabilities if needed.
+- Stored extracted text is searched by code in the MVP, not by a database index; PostgreSQL's text-search features remain available if a later decision introduces one.
 - Background job coordination and progress use the same database (proposed in [deployment and operations](../architecture/deployment-and-operations.md)).
 - If scale requires it later, a concern can be split out; the specs keep persistence behind clear interfaces.
 

@@ -1,6 +1,6 @@
 # Tool Gateway specification
 
-Status: MVP specification. Owner slice: module specifications. Related: [Tool catalog](tool-catalog.md), [Query Analyzer](query-analyzer.md), [File Service](file-service.md), [Analysis Worker and Sandbox](analysis-worker-and-sandbox.md), [Background Jobs](background-jobs.md), [Persistence](persistence.md), [Security and permissions](../architecture/security-and-permissions.md), [Architecture overview](../architecture/overview.md).
+Status: MVP specification. Related: [Tool catalog](tool-catalog.md), [Query Analyzer](query-analyzer.md), [File Service](file-service.md), [Analysis Worker and Sandbox](analysis-worker-and-sandbox.md), [Background Jobs](background-jobs.md), [Persistence](persistence.md), [Security and permissions](../architecture/security-and-permissions.md), [Architecture overview](../architecture/overview.md).
 
 ## 1. Purpose
 
@@ -21,7 +21,7 @@ Responsible for:
 - executing AML as the user, including paging for `aml_fetch`;
 - running the Query Analyzer on every query and refusing rejected ones;
 - enforcing per-user and system-wide concurrency, question budgets, job budgets, and timeouts;
-- writing fetched results into a worker's Sandbox as files, through the Sandbox file channel;
+- writing fetched results into the conversation's Sandbox as files, through the Sandbox file channel;
 - registering every citable source and resolving citation ids for display;
 - emitting an audit event for every request to Aras.
 
@@ -46,7 +46,7 @@ The gateway serves the following tools. Their full contracts are in [Tool catalo
 | `file_read` | Main Agent | Throttle, File Service, Citation Registry, text to model |
 | `file_fetch` | Analysis Worker | Throttle, File Service, Citation Registry, files into Sandbox |
 
-Knowledge tools (`schema_describe`, `knowledge_index`, `knowledge_read`) do not touch Aras and are served by the [Knowledge Service](knowledge-and-learning.md); their citations are registered through the Citation Registry interface below.
+Knowledge tools (`schema_describe`, `knowledge_index`, `knowledge_read`) do not touch Aras and are served through the [Knowledge Service](knowledge-and-learning.md); `schema_describe` answers from the configuration that [Discovery](discovery.md) has stored. Their knowledge citations are registered through the Citation Registry interface below.
 
 ### 3.2 Internal service interfaces
 
@@ -74,7 +74,7 @@ The gateway is a service boundary: the Main Agent, Analysis Worker runtime, Disc
 |---|---|---|---|
 | `aras_credentials` | Credentials | One row per signed-in auth session: user, encrypted Aras access token and refresh material, expiry, last renewal, revocation time. | [aras_credentials](persistence.md#aras_credentials) |
 | `job_credentials` | Credentials | One row per background job: job, user, encrypted renewable credential, scope (the job), expiry, last renewal, dropped time. | [job_credentials](persistence.md#job_credentials) |
-| `citations` | Citation Registry | One row per citable source per conversation: id, conversation, turn, tool call, kind, item type, Aras id, keyed name, file id, file name, locator, parent item, knowledge entry id, knowledge state and confirmation at citing, link. | [citations](persistence.md#citations) |
+| `citations` | Citation Registry | One row per citable source per conversation: id, conversation, turn, tool call, kind, item type, Aras id, keyed name, file id, file name, locator, parent item, knowledge entry id, knowledge version, state, and confirmation at citing, link. | [citations](persistence.md#citations) |
 | `throttle_leases` | Throttle | One row per in-flight query slot: user, scope (`interactive` or `background`), cost class, units, acquired time, lease expiry, holder (tool call or background job). Every lease counts against both its user's limit and the system-wide limit. | [throttle_leases](persistence.md#throttle_leases) |
 | `question_budgets` | Throttle | One row per turn and per sub-budget (worker or job): limits and consumed queries, rows, bytes, wall time; parent budget. | [question_budgets](persistence.md#question_budgets) |
 
@@ -90,7 +90,7 @@ The gateway stores no Aras query results. Rows returned to the model become part
 2. **Use.** Every Aras request looks up the credential for the conversation's auth session, decrypts it in memory for the request only, and attaches it.
 3. **Renewal.** When Aras indicates expiry, or the stored expiry is near (Proposed: within 5 minutes), the gateway renews with the stored refresh material, if the Aras sign-in method provides it. If renewal fails, the request fails with `ARAS_AUTH_EXPIRED`; the Main Agent ends the turn as `failed` with reason `auth_expired`, keeping everything done so far in the transcript. After the user signs in again, the Chat App offers to continue, which starts a new turn that resumes from the saved transcript (see [Main Agent](main-agent.md)).
 4. **Revocation.** At sign-out or product session expiry, the credential row is revoked and its secret material erased. Running turns of that session are cancelled; background jobs continue on their own job credential.
-5. **Job credentials.** When a user confirms a background job, the gateway derives a job credential from the user's live credential (for example a separately issued refresh grant, where the Aras sign-in method allows it; the exact mechanism depends on the target Aras version's authentication and must be verified). The job credential is usable only for requests carrying that job's id, is renewed on a schedule (`gateway.job_credential_renew_seconds`, Proposed: every 15 minutes), has a hard maximum lifetime (`gateway.job_credential_max_hours`, Proposed: 24 hours; these keys are owned here and referenced by [Background Jobs](background-jobs.md)), and is dropped when the job ends, fails, or is cancelled. If it cannot be renewed, the job pauses and the user is asked to sign in again to resume it.
+5. **Job credentials.** When a user confirms a background job, the gateway derives a job credential from the user's live credential (for example a separately issued refresh grant, where the Aras sign-in method allows it; the exact mechanism depends on the target Aras version's authentication and must be verified). The job credential is usable only for requests carrying that job's id, is renewed on a schedule (`gateway.job_credential_renew_seconds`, Proposed: every 15 minutes), has a hard maximum lifetime (`gateway.job_credential_max_hours`, Proposed: 24 hours; these keys are defined here and referenced by [Background Jobs](background-jobs.md)), and is dropped when the job ends, fails, or is cancelled. If it cannot be renewed, the job pauses and the user is asked to sign in again to resume it.
 
 The gateway never uses a service account or administrator identity to read Aras data. Discovery also runs as the user.
 
@@ -103,7 +103,7 @@ The gateway never uses a service account or administrator identity to read Aras 
 5. Send the AML to Aras as the user, with the request timeout.
 6. On an Aras fault, map it (5.4) and return the mapped error.
 7. Parse the result into rows. Register every item and nested related item in the Citation Registry.
-8. For `aml_query`: trim to `max_rows` and the character cap, flatten, attach citation ids, and return.
+8. For `aml_query`: apply `max_rows` and the character cap (rows beyond the cap are left out and the result is marked `truncated` with a `truncation_hint` and, where Aras reported it, `total_rows_reported`; if the text alone exceeds the character cap at the row cap, return `RESULT_TOO_LARGE` instead of rows), flatten, attach citation ids, and return.
 9. For `aml_fetch`: write rows to the Sandbox file as they arrive, with each row's citation id; if `all_pages` is set, repeat steps 3 to 7 for the next page until the last page, `max_rows`, the budget, or the time limit; then write the citation manifest and return the summary.
 10. Release the slot after each page, charge rows, bytes, and time to the budget, and record the tool call and audit event.
 
@@ -144,8 +144,8 @@ The exact form of Aras faults (for example the fault code for "no items found") 
 
 ### 5.5 Citation Registry
 
-1. Every tool that returns or writes citable content asks the registry to register each source before the result is released: records (item type, Aras id, keyed name), file segments (file id, file name, locator, parent item), and knowledge entries (entry id, layer, kind, state, confirmation).
-2. Within a conversation, the same source is registered once: registering the same item, the same file segment, or the same knowledge entry and state again returns the existing id. A knowledge entry whose state changed since it was registered gets a new id, so a citation always shows the state the answer relied on.
+1. Every tool that returns or writes citable content asks the registry to register each source before the result is released: records (item type, Aras id, keyed name), file segments (file id, file name, locator, parent item), and knowledge entries (entry id, layer, kind, version, state, confirmation, and the confidence computed from them). Knowledge citations are registered for discovered and learned entries only; no citation is registered for product skills or for the user's own preferences.
+2. Within a conversation, the same source is registered once: registering the same item, the same file segment, or the same knowledge entry with the same version, state, and confirmation again returns the existing id. A knowledge entry whose version, state, or confirmation changed since it was registered gets a new id, so a citation always shows the entry as the answer relied on it.
 3. Ids are opaque, prefixed `cit_`, and unique within the deployment. The registry also records **citation sets** (prefix `cst_`, table [citation_sets](persistence.md#citation_sets)): each `aml_fetch` call registers one set over every record it wrote, and `submit_report` may register narrower sets; a set groups record citations and is not a fourth citation kind (see [tool catalog](tool-catalog.md#35-citation-summaries)).
 4. **Resolve** returns the stored record and builds the link that opens the source in Aras: an item link from the configured Aras base address, item type, and Aras id; a file link through the parent item where one was recorded. **Proposed:** links use the Aras client's standard deep-link form for the target version, which must be verified; the link is a navigation aid only and Aras re-checks access when it is opened.
 5. Resolve is scoped to the conversation: an id from another conversation returns `NOT_FOUND`, so one user cannot resolve another user's citations.
@@ -153,11 +153,11 @@ The exact form of Aras faults (for example the fault code for "no items found") 
 
 ### 5.6 Writing into the Sandbox
 
-The gateway writes fetched results and file text into the worker's Sandbox through a **Sandbox file channel** controlled by the service host: the Sandbox has no network and never connects to the gateway or to Aras. **Proposed:** the channel is a per-Sandbox data directory mounted into the container, written only by the host-side gateway and read-only to code inside, with a separate writable work directory for code output. See [Analysis Worker and Sandbox](analysis-worker-and-sandbox.md) for the layout and lifecycle.
+The gateway writes fetched results and file text into the conversation's Sandbox through a **Sandbox file channel** controlled by the service host: the Sandbox has no network and never connects to the gateway or to Aras. **Proposed:** the channel is a per-Sandbox data directory mounted into the container, written only by the host-side gateway and read-only to code inside, with a separate writable work directory for code output. See [Analysis Worker and Sandbox](analysis-worker-and-sandbox.md) for the layout and lifecycle.
 
 1. The gateway chooses every path it writes: AML results go to `data/aml/<name>.jsonl` or `.csv` (the name defaults to the tool call id), file text to `data/files/<file id>.txt` with its segment map beside it, and an entry for each file is appended to `data/manifest.json`. A model-supplied name with path separators, parent references, or characters outside letters, digits, hyphens, and underscores is rejected with `PATH_INVALID`.
 2. Writes are streamed so a large fetch never sits in gateway memory.
-3. Each written file is recorded in [sandbox_files](persistence.md#sandbox_files) with its source tool call, size, row count, citation range or set, and manifest entry, and audited as `sandbox.write`.
+3. Each written file is recorded in [sandbox_files](persistence.md#sandbox_files) with its source tool call, size, row count, citation set, and manifest entry, and audited as `sandbox.write`.
 
 ### 5.7 Turn budget flow
 

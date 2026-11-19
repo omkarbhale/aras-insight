@@ -1,6 +1,6 @@
 # Main Agent specification
 
-Status: MVP specification. Owner slice: module specifications. Related: [Tool catalog](tool-catalog.md), [Tool Gateway](tool-gateway.md), [Analysis Worker and Sandbox](analysis-worker-and-sandbox.md), [Knowledge and learning](knowledge-and-learning.md), [Model configuration](model-configuration.md), [Persistence](persistence.md), [Architecture overview](../architecture/overview.md), [Question lifecycle](../architecture/question-lifecycle.md), [Prompts](../prompts/README.md).
+Status: MVP specification. Related: [Tool catalog](tool-catalog.md), [Tool Gateway](tool-gateway.md), [Analysis Worker and Sandbox](analysis-worker-and-sandbox.md), [Knowledge and learning](knowledge-and-learning.md), [Model configuration](model-configuration.md), [Persistence](persistence.md), [Architecture overview](../architecture/overview.md), [Question lifecycle](../architecture/question-lifecycle.md), [Prompts](../prompts/README.md).
 
 ## 1. Purpose
 
@@ -143,7 +143,7 @@ A turn in `waiting_clarification` or `waiting_confirmation` is finished; the use
 Each model step receives, in this order:
 
 1. The Main Agent system prompt (full text in [../prompts/README.md](../prompts/README.md)). It carries the standing product rules: read-only, cite every factual statement, report coverage, association not causation, state assumptions, ask one question before expensive analysis when a definition is missing, never place data values in learned knowledge.
-2. The product skills marked for the Main Agent (catalog in [../skills/README.md](../skills/README.md)), for example how to write AML and how to use the tools. Product skills are loaded in full when they are short and by index (id and one-line description) when long, for the model to read with `knowledge_read`. The split is per skill and set by the skill's own metadata.
+2. The product skills marked for the Main Agent (catalog in [../skills/README.md](../skills/README.md)), for example how to write AML and how to use the tools. Product skills are loaded in full when they are short and by index (knowledge entry id and one-line description) when long, for the model to read with `knowledge_read`. The split is per skill and set by the skill's own metadata.
 3. A knowledge index excerpt: the ids, one-line descriptions, states, and confirmation status of instance knowledge entries relevant to the question, obtained by calling the Knowledge Service the same way `knowledge_index` does, using the user message as the topic. Full bodies are not preloaded; the model loads them with `knowledge_read`.
 4. The user's own preferences (layer `user_preference`, owner is the user), in full. Preferences never appear for other users.
 5. A short discovered-schema overview: item type names and one-line descriptions most relevant to the question (**Proposed**: up to 40 entries), so the model knows what to ask `schema_describe` for.
@@ -154,7 +154,7 @@ Citation ids from earlier turns of the same conversation stay valid and may be r
 
 ### 5.3 Routing rules: direct answer or Analysis Worker
 
-The model makes the routing choice; the prompt states these rules and the Main Agent enforces the hard limits.
+The model makes the routing choice; the prompt states these rules, the tools apply the hard limits, and the Main Agent validates its answer against them.
 
 | Question shape | Route | Reason |
 |---|---|---|
@@ -166,11 +166,11 @@ The model makes the routing choice; the prompt states these rules and the Main A
 | Multi-part questions with independent parts | Several `start_analysis` calls in one step | Workers run in parallel and report separately. |
 | Full-text search across file contents with no item anchor | `start_background_job` (proposal), after a name, title, description, and file-name search via `aml_query` | Potentially very large; runs only after confirmation. |
 
-Hard limits enforced by the Main Agent regardless of the model's choice:
+Hard limits applied by the tools regardless of the model's choice (the Tool Gateway for `aml_query`, the File Service for `file_read`, the `start_analysis` handler for workers). The Main Agent validates its answer against them:
 
-1. `aml_query` returns at most 100 rows or 60,000 characters to the model (**Proposed default**, see [tool-catalog.md#aml_query](tool-catalog.md#aml_query)). When more rows match, the result is truncated, the tool returns the total row count when the query reported it, and a warning that the question needs `start_analysis`. The model must not compute aggregates from a truncated result; the answer check (5.9) flags numbers derived from a truncated result.
+1. `aml_query` returns at most 100 rows or 60,000 characters to the model (**Proposed default**, see [tool-catalog.md#aml_query](tool-catalog.md#aml_query)). When more rows match, the result is marked `truncated`, with `total_rows_reported` when the query reported it and a `truncation_hint` that the question needs a narrower filter or `start_analysis`; when the text alone exceeds the character cap at the row cap, the tool returns `RESULT_TOO_LARGE` instead of rows. The model must not compute aggregates from a truncated result; the answer check (5.9) flags numbers derived from a truncated result.
 2. `file_read` returns at most 20,000 characters per call. More than 5 `file_read` calls in one turn (**Proposed**) produce a warning recommending `start_analysis`.
-3. At most `analysis.max_parallel_workers` (4, **Proposed default**, owned by [analysis-worker-and-sandbox.md](analysis-worker-and-sandbox.md)) Analysis Workers run in parallel per turn. Further `start_analysis` calls queue and start when a worker slot frees; they are not refused.
+3. At most `analysis.max_parallel_workers` (4, **Proposed default**, defined in [analysis-worker-and-sandbox.md](analysis-worker-and-sandbox.md)) Analysis Workers run in parallel per turn. Further `start_analysis` calls queue and start when a worker slot frees; they are not refused.
 
 ### 5.4 Starting Analysis Workers
 
@@ -225,7 +225,7 @@ Uncertain entries remain usable but are verified first: if the entry has configu
 3. It checks that factual statements carry citations. The check is a prompt-level rule, verified by a lightweight structural test: every sentence containing a number, an item name returned by a tool, or a quoted passage must carry at least one marker (**Proposed**: implemented as a second, cheap model call through the `main` slot that lists uncited factual sentences; an open question is whether the check runs on every answer).
 4. On findings, the model gets one repair step with the list of invalid markers and uncited sentences.
 5. After repair, any remaining invalid marker is removed, and the affected sentence is shown with a visible "unverified statement" note. Remaining uncited factual sentences are flagged the same way.
-6. The resolved citations, with their display data (kind, item type, keyed name, file name and locator, knowledge entry and state), are stored with the turn so the Chat App can render them without further lookups.
+6. The resolved citations, with their display data (kind, item type, keyed name, file name and locator, knowledge entry, state, and confidence), are stored with the turn so the Chat App can render them without further lookups.
 
 ### 5.9 Coverage
 
@@ -234,7 +234,7 @@ Every answer reports coverage in a fixed block. The Main Agent assembles it from
 | Coverage field | Source |
 |---|---|
 | Records considered | Sum of rows returned by `aml_query` calls and by worker reports, per item type, stated as "of the records you can access". |
-| Records truncated or not fetched | Truncation warnings, budget exhaustion. |
+| Records truncated or not fetched | Results marked `truncated`, results refused as `RESULT_TOO_LARGE`, budget exhaustion. |
 | Records with no linked evidence | Reported by workers (for example changes with no linked document). |
 | Files read / unreadable / unsupported | File Service results: unreadable (for example scanned PDFs without a text layer, since OCR is deferred), unsupported formats, permission denied. |
 | Budget limits reached | Throttle and question budget. |
@@ -251,6 +251,7 @@ A standing product rule: the agent reports association, never causation the data
 1. Every message, tool call, and tool result is written to the database before the next step starts. Writes are append-only within a turn.
 2. Model output is persisted before tool dispatch, so a crash after dispatch never loses the request that caused it.
 3. Tool calls carry an idempotency key equal to the tool call id. All Main Agent tools are reads except `start_analysis`, `start_background_job`, and `record_learning`; these three check the key before acting, so a replay does not create a second job, proposal, or entry.
+4. The user can close the browser at any time; the turn continues. On return, the Chat App reads the turn state and the progress events and shows the answer when ready.
 
 ### 5.12 Context budget
 
@@ -271,7 +272,7 @@ The Main Agent records a learning signal on the turn when it sees:
 | Empty result | A query that returned zero rows where the user expected results, or a worker report with no findings. |
 | Explicit teaching | The user states a definition, a process meaning, or a rule ("an ECO is considered late when ..."). |
 
-On explicit teaching, the model calls `record_learning` in the same turn (live learning). Other signals mark the conversation for batched learning after the inactivity threshold. A query built from a learned entry that the Query Analyzer rejects is reported by the Tool Gateway to the Knowledge Service, which marks the entry uncertain. All knowledge state transitions are performed by the Knowledge Service. Learning rules are specified in [knowledge-and-learning.md](knowledge-and-learning.md).
+On explicit teaching, the model calls `record_learning` in the same turn (live learning); the tool carries only learning proposals, not confirmations, objections, or analyzer failures. Other signals mark the conversation for batched learning after the inactivity threshold. A query built from a learned entry that the Query Analyzer rejects is reported by the Tool Gateway to the Knowledge Service, which marks the entry uncertain. All knowledge state transitions are performed by the Knowledge Service. Learning rules are specified in [knowledge-and-learning.md](knowledge-and-learning.md).
 
 ### 5.14 Resumption
 
@@ -282,7 +283,6 @@ On explicit teaching, the model calls `record_learning` in the same turn (live l
 ### 5.15 Continuing after sign-in
 
 When the Aras credential expires during a turn, the Tool Gateway returns ARAS_AUTH_EXPIRED. The turn ends `failed` with failure reason `auth_expired`; everything done so far stays in the transcript. After the user signs in again, the Chat App offers "Continue", which starts a new turn whose reply-to context names the failed turn. The Main Agent assembles context from the saved transcript, including the failed turn's tool results, and carries on from where it stopped rather than starting the question again.
-4. The user can close the browser at any time; the turn continues. On return, the Chat App reads the turn state and the progress events and shows the answer when ready.
 
 ## 6. Configuration
 
@@ -317,7 +317,7 @@ Turn wall time and query budgets come from the Throttle configuration in [tool-g
 |---|---|---|---|
 | Model endpoint error or timeout | Model Router error | Progress shows "retrying"; after retries the turn fails | Router retries per [model-configuration.md](model-configuration.md); turn ends `failed` with partial answer if any. |
 | Model returns malformed tool call | Schema validation | None visible | INVALID_INPUT returned to the model; counts as a step. |
-| Repeated analyzer rejections | 3 consecutive rejected AML calls (`aml_query` or `aml_fetch`) in a row (Proposed) | Progress line "having trouble building the query" | Model is told to try a different approach or ask the user; learned entries used to build the query are reported for uncertainty. |
+| Repeated analyzer rejections | 3 consecutive rejected AML calls (`aml_query` or `aml_fetch`) in a row (Proposed) | Progress line "having trouble building the query" | The Main Agent's model is told to consult `schema_describe`, try a different approach, or ask the user (an Analysis Worker gets a different hint, see [tool-catalog.md](tool-catalog.md#52-retry-guidance)); learned entries used to build the query are reported for uncertainty. |
 | Aras credential expires mid-turn | ARAS_AUTH_EXPIRED from the gateway | Chat App asks the user to sign in again | Turn ends `failed` with reason `auth_expired`; after signing in the user chooses "Continue" and a new turn resumes from the saved transcript (5.15). |
 | Aras unavailable | ARAS_UNAVAILABLE | Answer explains Aras could not be reached | Turn ends `failed`; no automatic retry beyond the gateway's. |
 | Budget exhausted | BUDGET_EXHAUSTED | Answer with partial results and coverage stating the limit | Forced final step without tools. |
@@ -333,7 +333,7 @@ Turn wall time and query budgets come from the Throttle configuration in [tool-g
 3. Tool results and user messages are untrusted text. The prompt instructs the model to treat content of Aras records and files as data, never as instructions. Tool calls are validated against schemas; the agent cannot reach any capability outside its tool list.
 4. Cross-conversation leakage: history, citations, and Sandbox content are scoped to one conversation of one user. Shared learned knowledge must not contain data values; the prompt enforces this in MVP and the Learner applies the same rule. Scheduled checks are deferred ([roadmap](../product/roadmap.md)).
 5. User preferences are only loaded for their owner.
-6. Conversations are private to their user. Administrators access transcripts only through the operational procedures described in [security-and-permissions.md](../architecture/security-and-permissions.md).
+6. Conversations are private to their user. The product has no feature that shows a transcript to anyone but its user; administrators who operate the Database have the physical access described in [security-and-permissions.md](../architecture/security-and-permissions.md) (data at rest).
 
 ## 10. Observability
 
@@ -364,5 +364,5 @@ Deferred items and their triggers are listed in the [roadmap](../product/roadmap
 4. **Proposed**: the answer check as a second cheap model call. Open whether it runs on every answer or only on answers with numbers or causal wording.
 5. **Proposed**: 3 consecutive rejected AML calls as the threshold for changing approach.
 6. **Proposed**: product skill loading split (in full when short, by index when long) driven by skill metadata; the metadata field is defined in [../skills/README.md](../skills/README.md).
-7. Whether workers should receive read-only `schema_describe` and `knowledge_read` rather than relying on the brief; the canon tool list does not give them these tools, and this specification follows it.
+7. Whether workers should receive read-only `schema_describe` and `knowledge_read` rather than relying on the brief; the tool list in the [tool catalog](tool-catalog.md) does not give them these tools, and this specification follows it.
 8. **Proposed**: an expired credential ends the turn and "Continue" resumes it as a new turn, rather than holding the turn paused until sign-in.

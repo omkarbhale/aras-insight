@@ -17,7 +17,7 @@ The model is the semantic layer. There is no vector index and no reuse of the in
 | --- | --- |
 | Vector index over all vault files | Permission-faithful retrieval is hard; index sync; an embedding model to host or send data to; a large store of business content. The graph usually narrows to a small set of relevant files anyway. |
 | Reuse the installation's existing search engine | Behaviour, coverage, and permission handling vary per installation; ties the product to a component not every customer runs. |
-| Vector index over learned and discovered knowledge | Not needed: the agent's own knowledge is loaded by index and description, and vector search, if ever used, is reserved for files inside Aras. See Open questions for the revisit trigger held in the backlog. |
+| Vector index over learned and discovered knowledge | Not needed: the agent's own knowledge is loaded by index and description, and vector search, if ever used, is reserved for files inside Aras. See the [roadmap](../product/roadmap.md) for the revisit trigger. |
 
 ## Consequences
 
@@ -28,7 +28,7 @@ The model is the semantic layer. There is no vector index and no reuse of the in
 
 ## Open questions
 
-- The backlog holds a possible later vector index for learned and discovered knowledge, to be revisited only if the knowledge base outgrows index-based loading (see [roadmap](../product/roadmap.md)). That would revisit the statement above that vector search is for files, not for the agent's own material, and would need a new decision record.
+- The roadmap lists a possible later vector index for learned and discovered knowledge, to be revisited only if the knowledge base outgrows index-based loading (see [roadmap](../product/roadmap.md)). That would revisit the statement above that vector search is for files, not for the agent's own material, and would need a new decision record.
 
 ## Related
 

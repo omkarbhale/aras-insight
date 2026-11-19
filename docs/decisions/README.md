@@ -1,8 +1,8 @@
 # Decision records
 
-Each record below captures one significant architectural or product decision for Aras Insight: the context that forced a choice, what was decided, the alternatives that were considered, why each was rejected, and the consequences the product accepts. They exist so that a reviewer can challenge a decision on its merits, and so that a future change of direction starts from the original reasoning rather than from memory.
+Each record below captures one significant architectural or product decision for Aras Insight: the context that forced a choice, what was decided, the alternatives that were considered, why each was rejected, and the consequences the product accepts. They exist so that a reviewer can challenge a decision on its merits, and so that a future change of direction starts from the original reasoning rather than from memory. A record of this kind is called an ADR (architecture decision record), and other documents cite them as, for example, "ADR 0005".
 
-All records here have status **Accepted** for the MVP. A record is never edited to reverse its decision: a new record supersedes it and both are kept. Items deliberately left out of the MVP, and what would trigger revisiting them, are in the [roadmap](../product/roadmap.md). How the decisions fit together is in the [architecture overview](../architecture/overview.md).
+All records here have status **Accepted**, and each states in its Scope line whether it holds for the MVP only or beyond. A record is never edited to reverse its decision: a new record supersedes it and both are kept. The superseded record is marked "Status: Superseded by NNNN", and the new record carries a "Supersedes: NNNN" line. Items deliberately left out of the MVP, and what would trigger revisiting them, are in the [roadmap](../product/roadmap.md). How the decisions fit together is in the [architecture overview](../architecture/overview.md).
 
 ## Index
 
@@ -75,13 +75,15 @@ All records here have status **Accepted** for the MVP. A record is never edited 
 
 ## Record format
 
-Every record has the same sections:
+Every record opens with a Status line and a Scope line, and then has the same sections:
 
-- **Status and scope** - Accepted, and whether it holds for the MVP only or beyond.
+- **Status** - Accepted, or Superseded by NNNN once a later record replaces it. A record that replaces another adds a line "Supersedes: NNNN".
+- **Scope** - whether the decision holds for the MVP only or beyond.
 - **Context** - the forces that made a decision necessary.
 - **Decision** - what was decided, stated so it can be checked against the implementation.
 - **Alternatives considered** - each serious alternative, and why it was rejected (or deferred).
 - **Consequences** - what the product accepts as a result, including costs.
+- **Open questions** - optional; present only in a record that leaves a question open.
 - **Related** - other records and the documents that implement the decision.
 
 New records take the next free number and the same sections. Numbers are never reused.

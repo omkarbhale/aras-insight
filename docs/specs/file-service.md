@@ -1,6 +1,6 @@
 # File Service specification
 
-Status: MVP specification. Owner slice: module specifications. Related: [Tool Gateway](tool-gateway.md), [Tool catalog](tool-catalog.md), [Analysis Worker and Sandbox](analysis-worker-and-sandbox.md), [Background Jobs](background-jobs.md), [Persistence](persistence.md), [Security and permissions](../architecture/security-and-permissions.md)
+Status: MVP specification. Related: [Tool Gateway](tool-gateway.md), [Tool catalog](tool-catalog.md), [Analysis Worker and Sandbox](analysis-worker-and-sandbox.md), [Background Jobs](background-jobs.md), [Persistence](persistence.md), [Security and permissions](../architecture/security-and-permissions.md)
 
 ## 1. Purpose
 
@@ -125,7 +125,7 @@ Server events and custom read-time methods configured in Aras (for example an on
 2. For each visible file, obtain text as in steps 2 to 5 of 5.2.
 3. Hand the text and the segment map to the Tool Gateway's Sandbox write channel, which writes them to the Sandbox paths and manifest entries defined in [Analysis Worker and Sandbox](analysis-worker-and-sandbox.md#53-how-the-tool-gateway-writes-into-the-sandbox).
 4. Register one `file` citation per segment (page, sheet, slide, section, or range); the citation ids are written into the segment map in the Sandbox. Finer passage citations (a character range within a segment) are registered later, when the worker submits a report that points at them (see [Analysis Worker and Sandbox](analysis-worker-and-sandbox.md#55-report-validation-and-citation-registration)).
-5. Return per-file statuses and a coverage summary: requested, read, partially read, unreadable (with reasons), unsupported (with formats), too large, denied or not found.
+5. Return per-file statuses and a coverage summary: requested, read, partially read, unreadable (with reasons), unsupported (with formats), too large, and denied (which also covers files Aras reports as not found).
 
 ### 5.5 Coverage reporting
 
@@ -137,8 +137,8 @@ For a file the user cannot access, coverage states only that a file could not be
 
 1. Extracted text is kept while it is used. A periodic task deletes `file_texts` rows (and their segments) whose `last_used_at` is older than `file_service.retention_days_unused`.
 2. Eviction never breaks citations: a citation stores the file id and locator, and the text is re-extracted on demand the next time it is opened.
-3. When the extractor version is raised (for example an improved PDF extractor), stored rows with an older version are re-extracted lazily on next use, not in bulk.
-4. An administrator can purge all extracted text, which is safe because it is a derived store (see [Deployment and operations](../architecture/deployment-and-operations.md)).
+3. When the extractor version is raised (for example an improved PDF extractor), stored rows whose extractor version is older than `file_service.min_extractor_version` are re-extracted on next use, whatever their status, not in bulk.
+4. Extracted text is a derived store: deleting it loses nothing that cannot be regenerated from Aras, and the backup guidance in [Deployment and operations](../architecture/deployment-and-operations.md) treats it as optional.
 
 ## 6. Configuration
 
@@ -152,7 +152,7 @@ For a file the user cannot access, coverage states only that a file could not be
 | `file_service.extraction_timeout_seconds` | integer | 120 (Proposed default) | Time limit for extracting one file |
 | `file_service.min_chars_per_page` | integer | 20 (Proposed default) | Below this, a PDF page is treated as having no text layer |
 | `file_service.range_segment_chars` | integer | 10,000 (Proposed default) | Size of range segments for formats without natural segments |
-| `file_service.retention_days_unused` | integer (days) | 90 (Proposed default) | Extracted text unused for this long is deleted |
+| `file_service.retention_days_unused` | integer (days) | 90 (Proposed default) | Extracted text unused for this long is deleted; 0 deletes the text after each use, so every read downloads and extracts again |
 | `file_service.min_extractor_version` | string | current release | Stored text from older extractor versions is re-extracted on use |
 | `file_service.max_concurrent_extractions` | integer | 4 (Proposed default) | Extraction steps running at the same time across the service |
 | `file_service.enabled_formats` | list | all MVP formats | Lets an operator disable a format, for example if its extractor is not approved |
@@ -185,7 +185,7 @@ For a file the user cannot access, coverage states only that a file could not be
 - **No information through denial.** A denied response reveals nothing about stored text (no length, no segment names, no status other than "not available to you").
 - **Untrusted content.** Documents are parsed by extractors that may have vulnerabilities. **Proposed:** extraction runs in an isolated process or container with no network access, no credentials, a read-only file system apart from a private temporary directory, and memory and time limits, so that a malicious document cannot reach Aras credentials or other users' data.
 - **Prompt injection.** Extracted text may contain instructions aimed at the model. The tool result marks file text as untrusted content, and the product prompts instruct the agents to treat it as data (see [Prompts](../prompts/README.md)). Because the agents are read-only and every query runs as the user, injected text cannot widen access.
-- **Extracted text is sensitive.** It is stored only in the product's one Database on the customer's own infrastructure. Database encryption at rest and backup handling follow [Deployment and operations](../architecture/deployment-and-operations.md).
+- **Extracted text is sensitive.** It is stored only in the product's one Database on the customer's own infrastructure. Encryption of the Database at rest is a control the customer applies (see [Security and permissions](../architecture/security-and-permissions.md#data-at-rest)); backup handling is described in [Deployment and operations](../architecture/deployment-and-operations.md).
 - **No knowledge leakage.** Text from files is never written into shared knowledge; the Learner records how to find things, never what documents say (see [Knowledge and learning](knowledge-and-learning.md)).
 
 ## 10. Observability
@@ -197,16 +197,16 @@ For a file the user cannot access, coverage states only that a file could not be
 
 ## 11. MVP versus deferred
 
-| Capability | MVP | Deferred item |
+| Capability | MVP | Roadmap item |
 |---|---|---|
 | Text PDFs, Word, Excel, PowerPoint, txt, csv, html, xml | Yes | |
 | Access re-check through Aras on every use | Yes | |
 | Extracted-text store keyed by file id | Yes | |
-| OCR for scanned PDFs and images | No; reported as unreadable | aras-defer-ocr |
-| Email files and other formats | No; reported as unsupported | aras-defer-more-formats |
-| Vector or semantic index over file text | No | aras-defer-knowledge-vectors covers knowledge; a file-content index is not planned for MVP |
-| CAD geometry | Not supported | aras-defer-cad |
-| Result caching beyond extracted text | No | aras-defer-cache |
+| OCR for scanned PDFs and images | No; reported as unreadable | [OCR for scanned documents](../product/roadmap.md) |
+| Email files and other formats | No; reported as unsupported | [Email, image, and other formats](../product/roadmap.md) |
+| Vector or semantic index over file text | No | [Vector index for knowledge](../product/roadmap.md) covers knowledge; a file-content index is not planned for MVP |
+| CAD geometry | Not supported | [CAD geometry understanding](../product/roadmap.md) |
+| Result caching beyond extracted text | No | [Answer and query result caching](../product/roadmap.md) |
 
 See the [Roadmap](../product/roadmap.md) for why each item is deferred and what would trigger revisiting it.
 

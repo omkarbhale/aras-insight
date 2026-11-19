@@ -1,6 +1,6 @@
 # Audit and progress specification
 
-Status: MVP specification. Owner slice: module specifications. Related: [Tool Gateway](tool-gateway.md), [Main Agent](main-agent.md), [Chat App](chat-app.md), [Background Jobs](background-jobs.md), [Knowledge and learning](knowledge-and-learning.md), [Model configuration](model-configuration.md), [Persistence](persistence.md), [Value and ROI](../business/value-and-roi.md), [Security and permissions](../architecture/security-and-permissions.md), [Deployment and operations](../architecture/deployment-and-operations.md).
+Status: MVP specification. Related: [Tool Gateway](tool-gateway.md), [Main Agent](main-agent.md), [Chat App](chat-app.md), [Background Jobs](background-jobs.md), [Knowledge and learning](knowledge-and-learning.md), [Model configuration](model-configuration.md), [Persistence](persistence.md), [Value and ROI](../business/value-and-roi.md), [Security and permissions](../architecture/security-and-permissions.md), [Deployment and operations](../architecture/deployment-and-operations.md).
 
 ## 1. Purpose
 
@@ -93,7 +93,7 @@ Every audit event has common fields: id, time, event type, actor component, user
 | `analysis.started` / `analysis.finished` | Analysis Worker | Job lifecycle | analysis job id, status, steps, rows and files used |
 | `job.proposed` / `job.confirmed` / `job.declined` / `job.expired` / `job.started` / `job.paused` / `job.resumed` / `job.finished` / `job.cancelled` | Background Jobs, Chat App | Background job lifecycle | job kind, scope summary, units done and total, status, reason for pause, failure, or expiry |
 | `knowledge.created` / `knowledge.updated` / `knowledge.merged` | Knowledge Service | Shared entry written or changed | entry id, layer, kind, version, source (live learning, batched learning, discovery), conversation id for learned entries |
-| `knowledge.state_changed` | Knowledge Service | State transition | entry id, from state, to state, trigger (configuration change, correction, analyzer failure, contradiction, re-derivation, confirmation) |
+| `knowledge.state_changed` | Knowledge Service | State transition | entry id, from state, to state, trigger (the `knowledge_state_events` trigger: `config_renamed`, `config_deleted`, `config_changed_rederived`, `user_correction`, `analyzer_failure`, `user_contradiction`, `verified`, `merged`, or `clarified`; see [persistence.md](persistence.md#knowledge_state_events)). A confirmation changes the confirmation status, not the state, and is recorded as `knowledge.confirmed` |
 | `knowledge.confirmed` / `knowledge.objected` | Knowledge Service | Independent confirmation or objection recorded | entry id, implicit or explicit |
 | `knowledge.contradiction_recorded` / `knowledge.contradiction_resolved` | Knowledge Service | A disagreement between users is recorded on an entry, or resolved | entry id, contradiction id, resolution on resolve. Retirement of an entry is recorded as `knowledge.state_changed` |
 | `preference.written` | Knowledge Service | A user preference entry is created or changed | entry id, owner user id, version |
@@ -149,7 +149,7 @@ Metrics are reported per period and, where the customer wants it, per Aras ident
 
 1. A purge runs daily (**Proposed**) and removes progress events older than 7 days and audit events older than 365 days (Proposed defaults, configurable).
 2. Each purge writes a `retention.purged` event.
-3. Deleting a conversation does not delete its audit events; the details of those events never contain message text, only AML text, identifiers, and counts. Progress events of a deleted conversation are deleted with it.
+3. Deleting a conversation does not delete its audit events; the details of those events never contain message text, only AML text, identifiers, and counts. AML text can carry literal criteria values, so audit events are one of the few places, besides transcripts and extracted file text, where Aras-derived values are kept: for `audit.retention_days` (365 days by default), subject to `audit.store_aml_text`. Progress events of a deleted conversation are deleted with it; otherwise progress lines, which may summarise data, are kept for 7 days.
 4. Customers with stricter rules can shorten retention; customers who must keep audit records longer can export them before purge.
 
 ## 6. Configuration

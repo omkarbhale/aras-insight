@@ -6,7 +6,7 @@ Aras Insight sorts every capability into three categories:
 - **Quality of life:** in the MVP design and expected in the first release, but the product still works if one of these slips.
 - **Not supported:** out of the MVP. Each item is listed in the [roadmap](roadmap.md) with the reason and the trigger for revisiting it.
 
-The three categories are a product decision. Which capability falls into core or quality of life is a **Proposed** classification wherever the underlying decisions do not state it; such items are marked below and listed under open questions.
+The three categories are decided. The assignment of individual capabilities to core or quality of life is a **Proposed** classification unless a decision states it; items that the decisions place in the MVP outright, such as throttling, saved sessions, and discovery, are core. Proposed assignments are marked below and listed under open questions.
 
 ## Core
 
@@ -29,7 +29,7 @@ The three categories are a product decision. Which capability falls into core or
 - Several Analysis Workers in parallel for multi-part questions. *(Proposed as core: the decisions allow it but do not classify it.)*
 - "Why" questions, with sources read in this order: long text fields on items, workflow sign-off comments, then linked files read with code.
 - Questions with no starting item: search across item names, titles, descriptions, and file names through AML.
-- Full-text search across file contents as a background job that the user confirms, batched and throttled, as that user, with a renewable credential scoped to the job.
+- Full-text search across file contents as a background job that the user confirms, batched and throttled, as that user, with a renewable credential scoped to the job where the Aras sign-in offers one (otherwise scans run only while the user's own session is live).
 - Process analysis: comparing discovered workflow and lifecycle definitions with the paths and timings of actual runs.
 - The model is the semantic layer. There is no vector index of files and no reuse of an existing search index in the MVP.
 
@@ -64,8 +64,8 @@ The three categories are a product decision. Which capability falls into core or
 
 ## Quality of life
 
-- Statement of assumptions when the agent uses a learned entry that nobody other than its teacher has confirmed yet; silent use after one independent confirmation.
-- Asking which meaning the user intends when a learned entry is contested.
+- Statement of assumptions when the agent uses a learned entry that nobody other than its teacher has confirmed yet; silent use after one independent confirmation. *(Proposed as quality of life.)*
+- Asking which meaning the user intends when a learned entry is contested. *(Proposed as quality of life.)*
 - Per-user preferences, kept in a personal layer separate from shared knowledge. *(Proposed as quality of life.)*
 - Live learning during a conversation, in addition to batched learning over transcripts after an inactivity threshold. *(Proposed as quality of life: batched learning alone satisfies the core requirement.)*
 - Size estimates shown before a user confirms a background job. *(Proposed.)*
@@ -90,5 +90,5 @@ Each of these is deferred, not rejected. The [roadmap](roadmap.md) gives the rea
 
 ## Open questions
 
-1. The classification of individual capabilities into core and quality of life, where marked **Proposed** above, needs confirmation.
+1. The classification of individual capabilities into core and quality of life, where marked **Proposed** above, needs confirmation. This includes assumption statements for unconfirmed learned knowledge and the clarifying question for contested knowledge: both are part of the decided safety design for shared learning ([decision record 0020](../decisions/0020-organisation-wide-learnings-with-disclosed-assumptions.md)), so what is open is only their category.
 2. Whether audit and usage records are core (proposed) or quality of life.

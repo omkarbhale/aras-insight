@@ -15,7 +15,7 @@ The model writes AML directly. Our code does not generate AML on the model's beh
 
 | Alternative | Why rejected |
 | --- | --- |
-| Structured query form compiled by our code (the model fills fields; our code emits AML) | Every AML capability the form lacks becomes a product limitation and a backlog item. The form becomes a second query language to design, document, and keep in step with Aras. A competent model can write the real language, and static analysis catches its mistakes. |
+| Structured query form compiled by our code (the model fills fields; our code emits AML) | Every AML capability the form lacks becomes a product limitation. The form becomes a second query language to design, document, and keep in step with Aras. A competent model can write the real language, and static analysis catches its mistakes. |
 | SQL-to-AML translation (the model writes SQL, which is translated) | Models know SQL well, but Aras's data model is not relational in the way SQL assumes (generations, relationships as items, server events). A faithful translator is a significant project, and anything it cannot translate is lost. Kept open as a possibility only if it preserves permissions. |
 | SQL against the database | Bypasses Aras permissions ([ADR 0005](0005-user-level-access-through-aras-server.md)). |
 

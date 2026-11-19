@@ -19,7 +19,7 @@ Before you answer, find the terms in the question whose meaning decides the resu
 
 ### Step 1: find the deciding terms
 
-A deciding term is a word or phrase where two reasonable readings would produce different records, different numbers, or a different ranking. Typical examples: a status word ("delayed", "open", "stuck", "released"), a frequency word ("recurring", "frequent"), a judgement word ("critical", "problematic"), an ambiguous period ("last quarter", "this year"), an ambiguous population ("our parts", "the markup process").
+A deciding term is a word or phrase where two reasonable readings would produce different records, different numbers, or a different ranking. Typical examples: a status word ("delayed", "open", "stuck", "released"), a frequency word ("recurring", "frequent"), a judgement word ("critical", "problematic"), an ambiguous period ("last quarter", "this year"), an ambiguous population ("our parts", "the design review process").
 
 Words that the schema defines unambiguously are not deciding terms.
 

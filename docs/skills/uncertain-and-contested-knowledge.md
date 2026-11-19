@@ -29,7 +29,7 @@ If the current user is the person who taught it, do not announce it; use it as c
 
 **uncertain.** Something may have made the entry wrong: a configuration element it depends on was renamed or removed, a user corrected an answer that cited it, or a query built from it failed validation. The entry stays usable, but verify it first:
 
-1. If the reason is a configuration change, check the mapped elements against the current schema with `schema_describe`. If the meaning still holds, use the entry, state it as an assumption, and report the successful check with `record_learning`. If it does not hold, do not use it; treat the term as undefined.
+1. If the reason is a configuration change, check the mapped elements against the current schema with `schema_describe`. If the meaning still holds, use the entry and state it as an assumption; `record_learning` carries only learning proposals, so do not use it to report the check. If it does not hold, do not use it; treat the term as undefined.
 2. If the reason is a correction or a dispute about meaning, confirm with the user. For expensive work, ask before starting, in the same single clarifying question you would ask for an undefined term. For a cheap lookup, proceed, and say plainly that the definition may be out of date.
 
 **contested.** Users disagree about what the entry means. Do not choose for the user. Ask which meaning they intend, using the contested-knowledge clarification wording, whatever the cost of the work, then proceed with their choice and state it in the assumptions.
@@ -49,9 +49,9 @@ Never hide an assumption to make an answer look more certain, and never disclose
 
 ### After the user responds
 
-- If the user objects to an assumption from a learned entry: use their meaning for this answer, re-run the affected part if the difference changes the result, and call `record_learning` to report the objection with the entry id. The entry becomes contested.
-- If the user carries on without objecting and they are not the entry's teacher: report the confirmation with `record_learning`.
-- If the user chooses between contested meanings: use their choice and report it with `record_learning`.
+- If the user objects to an assumption from a learned entry: use their meaning for this answer and re-run the affected part if the difference changes the result. You do not report the objection: the product evaluates the user's message, and the entry becomes contested. If the user also states what the term means to them, that is a correction or explicit teaching, and `record_learning` applies as described in persisting-knowledge.
+- If the user carries on without objecting and they are not the entry's teacher: do nothing further. The product evaluates the user's next message and records the confirmation.
+- If the user chooses between contested meanings: use their choice and state it in the assumptions. The product records the choice; you do not report it.
 
 ### For Analysis Workers
 

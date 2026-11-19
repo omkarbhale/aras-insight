@@ -23,7 +23,7 @@ Every AML query passes through the Query Analyzer, inside the Tool Gateway, befo
 
 - A class of hallucination (querying fields that do not exist) is caught before execution.
 - The Query Analyzer depends on fresh discovered knowledge; a stale schema produces false diagnostics, which is one of the signals that marks learned knowledge uncertain ([ADR 0019](0019-invalidation-by-provenance-and-contradiction.md)).
-- The analyser is also where read-only is enforced: non-read actions are rejected ([ADR 0001](0001-read-only.md)).
+- The Query Analyzer is also where read-only is enforced: non-read actions are rejected ([ADR 0001](0001-read-only.md)).
 - Diagnostics must be written for a model to act on: precise, naming the closest valid alternatives.
 
 ## Related

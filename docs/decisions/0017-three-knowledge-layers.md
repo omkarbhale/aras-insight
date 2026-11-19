@@ -12,7 +12,7 @@ The agent needs three different kinds of knowledge, with different owners, lifet
 Knowledge is split into three layers, served by the Knowledge Service and loaded by index and description, not by vectors:
 
 1. **Product Skills** - shipped with the product and versioned with it: how to write AML, how to use the tools and files, what knowledge to persist and where, live or batched over transcripts.
-2. **Instance Knowledge** - about this Aras installation: **Discovered** (from configuration) and **Learned** (meaning formed in use, such as "this process starts from a problem report, which fills fields A, B, C"). Shared organisation-wide.
+2. **Instance Knowledge** - about this Aras installation: **Discovered** (from configuration, including model-inferred descriptions such as "this process starts from a problem report, which fills fields A, B, C") and **Learned** (meaning formed in use, such as what the business means by "delayed"). Shared organisation-wide.
 3. **User Preferences** - per user or role, in their own personal layer, separate from shared knowledge.
 
 ## Alternatives considered

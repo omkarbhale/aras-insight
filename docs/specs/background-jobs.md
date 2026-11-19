@@ -1,6 +1,6 @@
 # Background Jobs specification
 
-Status: MVP specification. Owner slice: module specifications. Related: [Main Agent](main-agent.md), [Tool Gateway](tool-gateway.md), [File Service](file-service.md), [Knowledge and learning](knowledge-and-learning.md), [Chat App](chat-app.md), [Tool catalog](tool-catalog.md), [Audit and progress](audit-and-progress.md), [Persistence](persistence.md), [Security and permissions](../architecture/security-and-permissions.md)
+Status: MVP specification. Related: [Main Agent](main-agent.md), [Tool Gateway](tool-gateway.md), [File Service](file-service.md), [Knowledge and learning](knowledge-and-learning.md), [Chat App](chat-app.md), [Tool catalog](tool-catalog.md), [Audit and progress](audit-and-progress.md), [Persistence](persistence.md), [Security and permissions](../architecture/security-and-permissions.md)
 
 ## 1. Purpose
 
@@ -32,7 +32,7 @@ Non-responsibilities:
 - It does not decide that a scan is needed; the Main Agent proposes it.
 - It does not interpret scan results for the user; the Main Agent continues the conversation with the results.
 - It does not write learned knowledge itself; the Learner does (see [Knowledge and learning](knowledge-and-learning.md)).
-- It does not run Discovery; Discovery runs as the user at conversation start and on its change-check schedule (see [Discovery](discovery.md)).
+- It does not run Discovery; Discovery runs as the user when a conversation starts, after sign-in, when the Query Analyzer or Aras reports something the stored schema cannot explain, and on manual refresh (see [Discovery](discovery.md)).
 - It does not run scheduled reports or saved questions (deferred).
 - It never uses a shared or administrative Aras account.
 
@@ -80,11 +80,13 @@ The estimate is computed before the proposal is shown. It runs a count-style or 
 
 | Estimate field | Meaning |
 |---|---|
-| Candidate files | Number of files found, or a lower bound if the count was capped |
-| Already extracted | How many of them already have stored text (no download needed) |
-| Estimated download volume | Sum of sizes of files without stored text, where Aras reports sizes |
-| Estimated duration | From the job throughput settings and current queue |
-| Load statement | Plain-language statement that the scan runs as the user, in small batches, at low priority |
+| `candidate_files` | Number of files found, or a lower bound if the count was capped |
+| `cached_files` | How many of them already have stored text (no download needed) |
+| Estimated download volume (**Proposed**; not yet a field of the tool result in the [tool catalog](tool-catalog.md#start_background_job)) | Sum of sizes of files without stored text, where Aras reports sizes |
+| `expected_duration` | A range, from the job throughput settings and current queue |
+| `query_load` | Approximate number of Aras queries the scan will make |
+
+The confirmation card also carries a plain-language statement that the scan runs as the user, in small batches, at low priority.
 
 ## 4. Data owned
 
@@ -180,7 +182,7 @@ sequenceDiagram
 
 ### 5.5 Results returned to the conversation
 
-1. On completion, Background Jobs registers file citations for the matched passages (file id, file name, locator, the parent item the file was reached through) in the originating conversation through the Citation Registry. Snippets are not shown to anyone until access is re-checked: the citations point to the File Service, which re-checks access on every use.
+1. On completion, Background Jobs registers file citations for the matched passages (file id, file name, locator, the parent item the file was reached through) in the originating conversation through the Citation Registry; these citations carry the job id instead of a turn and a tool call (see [persistence.md](persistence.md#citations)). Snippets are not shown to anyone until access is re-checked: the citations point to the File Service, which re-checks access on every use.
 2. It writes a job result summary into the conversation as a system message: purpose, files scanned, files matched, top matches with citation ids, and coverage (files not readable by reason, cap reached).
 3. It starts a new turn of the Main Agent on that conversation with the job result as input (**Proposed**), so the agent can read the matched passages with `file_read` or start an Analysis Worker, and give the user a proper answer with citations. If the user is not connected, the answer waits in the conversation and the Chat App shows a notification on return.
 4. If a scan returned more matches than can usefully be shown, the summary says so and the Main Agent proposes narrowing.
@@ -232,7 +234,7 @@ Job credential renewal and lifetime are configured in the [Tool Gateway](tool-ga
 | Service restart | Jobs found running at startup | Brief delay | Resumed from the last committed batch; credentials remain valid if renewal is still possible |
 | A file cannot be read | File Service status | Counted in coverage | Item marked `unreadable` (or `skipped` for unsupported or too large) with the reason |
 | Repeated item failure | Attempts exceed limit | Counted in coverage as failed | Item marked failed; job continues |
-| User loses access to some files mid-job | Access check returns not visible | Those files are counted as not available | Items marked `denied`; no disclosure of their content |
+| User loses access to some files mid-job | Access check returns not visible | Those files are counted as `denied` in coverage (the bucket also covers files that are no longer found) | Items marked `denied`; no disclosure of their content |
 | Originating conversation deleted | Conversation not found when posting results | None | Job cancelled and credential dropped as soon as the deletion is seen |
 | Proposal ignored | TTL passes | Card shows "expired" | User can ask again |
 
@@ -241,7 +243,7 @@ Job credential renewal and lifetime are configured in the [Tool Gateway](tool-ga
 - **No privileged account.** Every request is made as the requesting user with that user's permissions, enforced by Aras, including custom read-time server events.
 - **Consent.** A full-text scan cannot start without the user's explicit confirmation of a proposal that states its purpose and size. The Main Agent cannot confirm on the user's behalf, and the confirmation endpoint accepts only the requesting user.
 - **Credential scope and lifetime.** Job credentials are separate per job where Aras allows, encrypted at rest, held only by the Tool Gateway, renewed in short intervals, capped in lifetime, and dropped at the end of the job. They never enter the Sandbox, the model context, logs, or progress events.
-- **Result exposure.** Matches are stored as locators and snippets in job items tied to the requesting user and conversation. Snippets are shown only to the requester and only after an access re-check through the File Service.
+- **Result exposure.** Matches are stored as locators and snippets in job items tied to the requesting user and conversation; the snippets are Aras-derived text and are deleted with the conversation (see [persistence.md](persistence.md#12-security-considerations)). Snippets are shown only to the requester and only after an access re-check through the File Service.
 - **Load protection.** Background priority, per-job rate limits, batch sizes, and system-wide concurrency keep scans from saturating the Aras server.
 
 ## 10. Observability
@@ -252,15 +254,15 @@ Job credential renewal and lifetime are configured in the [Tool Gateway](tool-ga
 
 ## 11. MVP versus deferred
 
-| Capability | MVP | Deferred item |
+| Capability | MVP | Roadmap item |
 |---|---|---|
 | User-confirmed full-text scans as the user | Yes | |
 | Batched learning over transcripts | Yes | |
-| Scheduled reports and saved questions | No | aras-defer-scheduled-reports, aras-defer-saved-questions |
-| Re-discovery triggered by a deployment hook | No | aras-defer-deploy-hook |
-| Scheduled checks that learned knowledge holds no data values | No | aras-defer-leak-audit |
-| Ageing out unused knowledge | No | aras-defer-knowledge-decay |
-| Reading scanned files in scans | No | aras-defer-ocr |
+| Scheduled reports and saved questions | No | [Saved questions and dashboards](../product/roadmap.md), [Scheduled reports](../product/roadmap.md) |
+| Re-discovery triggered by a deployment hook | No | [Deployment hook](../product/roadmap.md) |
+| Scheduled checks that learned knowledge holds no data values | No | [Scheduled leak checks](../product/roadmap.md) |
+| Ageing out unused knowledge | No | [Age out unused knowledge](../product/roadmap.md) |
+| Reading scanned files in scans | No | [OCR for scanned documents](../product/roadmap.md) |
 
 See the [Roadmap](../product/roadmap.md).
 

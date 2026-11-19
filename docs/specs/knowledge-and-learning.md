@@ -1,6 +1,6 @@
 # Knowledge Service and Learner specification
 
-Status: MVP specification. Owner slice: module specifications. Related: [Discovery](discovery.md), [Main Agent](main-agent.md), [Tool catalog](tool-catalog.md), [Background Jobs](background-jobs.md), [Persistence](persistence.md), [Architecture overview](../architecture/overview.md), [Skills catalog](../skills/README.md).
+Status: MVP specification. Related: [Discovery](discovery.md), [Main Agent](main-agent.md), [Tool catalog](tool-catalog.md), [Background Jobs](background-jobs.md), [Persistence](persistence.md), [Architecture overview](../architecture/overview.md), [Skills catalog](../skills/README.md).
 
 This document specifies two cooperating components:
 
@@ -11,14 +11,14 @@ They are specified together because the Learner has no storage of its own beyond
 
 ## 1. Purpose
 
-Aras installations differ. Item types, properties, lists, workflows, and lifecycles are customised, and the words people use ("a delayed change", "a released part", "the markup process") map onto that configuration in ways no product can ship in advance. The knowledge layers give the agents what they need to write correct queries and interpret results without per-customer hand configuration:
+Aras installations differ. Item types, properties, lists, workflows, and lifecycles are customised, and the words people use ("a delayed change", "a released part", "the design review process") map onto that configuration in ways no product can ship in advance. The knowledge layers give the agents what they need to write correct queries and interpret results without per-customer hand configuration:
 
 - what the product knows about Aras in general (Product Skills, shipped with the product);
 - what this installation's configuration is and means (Discovered knowledge, generated from the configuration);
 - what people in this organisation mean by their terms and processes (Learned knowledge, formed in conversations);
 - how an individual user prefers answers (User Preferences, private to that user).
 
-Every knowledge entry an answer relies on is citable, carries a state that tells the agent how far to trust it, and is kept current automatically when the configuration it depends on changes.
+Every discovered or learned knowledge entry an answer relies on is citable. Every entry carries a state that tells the agent how far to trust it, and is kept current automatically when the configuration it depends on changes.
 
 The governing rule for shared knowledge is **"how, never what"**: entries describe how the configuration is used and what terms mean, never business data values. Because of that rule, shared learned knowledge depends only on the Aras configuration, so configuration changes are the only staleness trigger.
 
@@ -34,7 +34,8 @@ The governing rule for shared knowledge is **"how, never what"**: entries descri
 6. Record confirmations and contradictions, and compute each learned entry's confirmation status.
 7. Receive configuration change sets from Discovery and apply invalidation: re-derivation of discovered entries, uncertainty for learned entries whose references were renamed or removed, retirement when a derivation source is deleted.
 8. Accept discovered entries from Discovery (create, new version, retire).
-9. Provide citation summaries for knowledge entries to the Citation Registry when an entry is read for use in an answer.
+9. Provide citation summaries for discovered and learned entries to the Citation Registry when an entry is read for use in an answer.
+10. Serve the discovered schema to the Main Agent through `schema_describe`, from the configuration that [Discovery](discovery.md) keeps in `config_items`.
 
 ### Learner responsibilities
 
@@ -65,7 +66,8 @@ The agent-facing schemas are defined once in the [tool catalog](tool-catalog.md)
 | Tool | Caller | Served by | Notes |
 |---|---|---|---|
 | [`knowledge_index`](tool-catalog.md#knowledge_index) | Main Agent | Knowledge Service | Topic-filtered index lines; see section 5.1 for matching and ranking. |
-| [`knowledge_read`](tool-catalog.md#knowledge_read) | Main Agent | Knowledge Service | Full entries; registers a knowledge citation per entry returned. |
+| [`knowledge_read`](tool-catalog.md#knowledge_read) | Main Agent | Knowledge Service | Full entries; registers a knowledge citation for each discovered or learned entry returned (none for product skills or the user's own preferences). A retired entry is returned with state retired and, where it was merged, a pointer to the entry it was merged into. |
+| [`schema_describe`](tool-catalog.md#schema_describe) | Main Agent | Knowledge Service, from the configuration Discovery stores | The discovered schema (item types, properties, relationship types, lists, workflow and lifecycle maps). The Knowledge Service serves the tool; the data is the `config_items` that Discovery reads and keeps current (see [discovery.md](discovery.md)). |
 | [`record_learning`](tool-catalog.md#record_learning) | Main Agent | Learner, then Knowledge Service | Live learning proposal; returns the outcome (created, merged, contradiction recorded, preference saved, or rejected with reason). |
 
 Analysis Workers do not call knowledge tools. The Main Agent places the knowledge excerpts a job needs, with their citation identifiers, in the job brief (see [Analysis Worker and Sandbox](analysis-worker-and-sandbox.md)).
@@ -74,10 +76,10 @@ Analysis Workers do not call knowledge tools. The Main Agent places the knowledg
 
 | Operation | Caller | Inputs | Outputs | Errors |
 |---|---|---|---|---|
-| Index | `knowledge_index` handler, Main Agent context builder | user id, topic text (optional), layers (optional), include retired (default no), limit | ordered list of index lines: id, layer, kind, title, one-line description, state, confidence label, confirmation status | INVALID_INPUT (topic too long, unknown layer) |
-| Read | `knowledge_read` handler, Learner | user id, list of entry ids, conversation id and turn id (for citation) | full entries (section 4.1) visible to the user; per-entry citation id | NOT_FOUND (unknown or not visible id; reported per id, others still returned) |
+| Index | `knowledge_index` handler, Main Agent context builder | user id, topic text (optional), layers (optional), include retired (default no), limit | ordered list of index lines: id, layer, kind, title, one-line description, state, confidence label (none for preferences or retired entries), confirmation status | INVALID_INPUT (topic too long, unknown layer) |
+| Read | `knowledge_read` handler, Learner | user id, list of entry ids, conversation id and turn id (for citation) | full entries (section 4.1) visible to the user, including retired entries (state retired, with the merged-into pointer where there is one); per-entry citation id for discovered and learned entries | NOT_FOUND (unknown or not visible id; reported per id, others still returned) |
 | Upsert discovered | Discovery | list of discovered entries with derivation sources and stamps, discovery run id | per entry: created, new version, unchanged | INVALID_INPUT (missing dependency stamps) |
-| Apply configuration changes | Discovery | change set: per configuration item, change type (new, modified, renamed, deleted), old and new name, old and new stamp | list of affected entries with action taken | none (failures per entry are recorded and retried) |
+| Apply configuration changes | Discovery | change set: per configuration item, change type (new, modified, renamed, deleted), old and new name, old and new stamp; per changed sub-element (list value, lifecycle state, workflow activity, property): parent item, element id, change type, old and new name | list of affected entries with action taken | none (failures per entry are recorded and retried) |
 | Write learned | Learner | validated proposal (section 5.5) | outcome: created, merged into id, new version of id, contradiction recorded on id | KNOWLEDGE_CONFLICT (concurrent update; Learner retries once) |
 | Write preference | Learner | owner user id, preference content | created or updated preference id | INVALID_INPUT |
 | Record confirmation | Learner, Chat App feedback handler | entry id, user id, conversation id, turn id, kind (explicit, implicit) | updated confirmation status | NOT_FOUND |
@@ -85,7 +87,7 @@ Analysis Workers do not call knowledge tools. The Main Agent places the knowledg
 | Mark uncertain | Main Agent (correction on a cited entry), Tool Gateway (analyzer failure on a query built from an entry), Discovery change handling | entry id, reason code, evidence references | new state | NOT_FOUND |
 | Resolve | Learner | entry id, resolution (section 5.6) | new state, new or split entries | KNOWLEDGE_CONFLICT |
 | Retire | Learner, Discovery change handling, merge | entry id, reason, merged-into id (optional) | retired entry | NOT_FOUND |
-| Load product skills | service startup | the shipped skill files and product version | count loaded; previous product version's skill entries retired | startup fails if a shipped skill file is malformed |
+| Load product skills | service startup | the shipped skill files and product version | count loaded; a changed skill gets a new version of its entry; entries for skills no longer shipped are retired with reason product_upgrade | startup fails if a shipped skill file is malformed |
 
 ### 3.3 Internal operations of the Learner
 
@@ -121,12 +123,12 @@ The logical schema of one entry. Persistence details (keys, indexes, retention) 
 | body | text (Markdown), up to 4,000 characters (Proposed) | all | The knowledge itself: meaning, mapping to configuration elements, how to query it, caveats. |
 | subject_refs | list of configuration references | instance, user_preference | The configuration elements the entry is about (see dependencies below); used for merging and topic matching. |
 | state | enumeration: confirmed, uncertain, contested, retired | all | Trust state; see section 5.2. Product skills are always confirmed. |
-| confirmation_status | enumeration: unconfirmed, independently_confirmed | learned only | unconfirmed: only the teacher (or teachers of its versions) has vouched for it; the agent discloses it as an assumption when using it. independently_confirmed: at least one other user confirmed it. |
-| confidence | derived label: high, medium, low | all, computed on read | high: product skill; mechanical discovered entry in confirmed state; learned entry confirmed and independently confirmed. medium: model-inferred discovered entry in confirmed state; learned entry confirmed but unconfirmed. low: uncertain or contested. (Proposed mapping.) |
+| confirmation_status | enumeration: unconfirmed, independently_confirmed | learned only | unconfirmed: only the teacher (or teachers of its versions) has vouched for it; the agent discloses it as an assumption when using it. independently_confirmed: at least one other user confirmed it (in a single-user deployment, `knowledge.single_user_deployment`, the teacher's word is enough). |
+| confidence | derived label: high, medium, low | product_skill and instance entries, computed on read | high: product skill; mechanical discovered entry in confirmed state; learned entry confirmed and independently confirmed. medium: model-inferred discovered entry in confirmed state; learned entry confirmed but unconfirmed. low: uncertain or contested. A user preference carries no confidence label. A retired entry carries none either; it is shown as retired. (Proposed mapping.) |
 | version | integer | all | Incremented on every content change; prior content kept in knowledge_entry_versions. |
 | product_version | text | product_skill only | The product release the skill shipped with. |
 | provenance | list of provenance records | all | Who and what created or changed the entry: discovery run id, or conversation id, turn id, user id, and the signal kind; merges list the source entry. Stored in knowledge_provenance. |
-| dependencies | list of configuration dependencies | instance; optional for preferences | Each: configuration item id (from config_items), Aras id, configuration type (for example ItemType, Property, List value, Life Cycle state, Workflow activity, typical in standard Aras releases; verify against the target version), name at the time of recording, modification stamp at the time of recording, dependency type (derived_from for discovered entries, refers_to for learned entries). Stored in knowledge_dependencies. |
+| dependencies | list of configuration dependencies | instance; optional for preferences | Each: configuration item id (from config_items; for a sub-element, the parent item), Aras id (of the item or sub-element), configuration type (for example ItemType, Property, List value, Life Cycle state, Workflow activity, typical in standard Aras releases; verify against the target version), name at the time of recording, modification stamp at the time of recording, dependency type (derived_from for discovered entries, refers_to for learned entries). Stored in knowledge_dependencies. |
 | confirmations | list | learned | Each: user id, conversation id, turn id, kind (explicit, implicit), timestamp. Stored in knowledge_confirmations. |
 | contradictions | list | learned, discovered model-inferred | Each: contradiction id, user id, conversation id, turn id, the asserted alternative meaning, status (open, resolved), resolution, timestamps. Stored in knowledge_contradictions. |
 | merged_into_id | entry id | retired entries | Set when the entry was merged into another. |
@@ -141,7 +143,7 @@ The logical schema of one entry. Persistence details (keys, indexes, retention) 
 |---|---|---|---|
 | product_skill | How to write AML safely; how to use the tools and the Sandbox; where "why" evidence lives (long text fields, workflow sign-off comments, linked files); what knowledge to persist and where. Full texts are in [docs/skills/](../skills/README.md). | Shipped with the product | Everyone |
 | instance, discovered | "The change process is configured as workflow map W with activities A to F; the path from B back to A is the rework loop." "Property P on item type T is a list of values V1 to V5 with labels L1 to L5." | Discovery | Everyone |
-| instance, learned | "When people say a change is delayed they mean its workflow took longer than the target duration recorded on the item." "The 'markup process' refers to workflow map M." | Learner | Everyone, immediately, with provenance |
+| instance, learned | "When people say a change is delayed they mean its workflow took longer than the target duration recorded on the item." "The 'design review process' refers to workflow map M." | Learner | Everyone, immediately, with provenance |
 | user_preference | "Prefers results as a table with at most 10 rows." "Means the last full calendar quarter by 'last quarter'." "Works on product line X." | Learner | Owner only |
 
 ## 5. Behaviour
@@ -152,7 +154,7 @@ The logical schema of one entry. Persistence details (keys, indexes, retention) 
 2. `knowledge_index` matches the topic text against each visible entry's title, aliases, description, and the names of its subject references (Proposed: case-insensitive term matching with simple normalisation of plurals and punctuation; no vectors).
 3. Results are ranked (Proposed): exact title or alias match first, then subject-reference name match, then description match; within a rank, confirmed before uncertain before contested; learned before discovered when both describe the same term (learned entries carry organisational meaning); then most recently used. Retired entries are excluded unless requested.
 4. The index returns at most the configured number of lines. Each line has the identifier, one-line description, state, and confidence label, so the model can choose which entries to load.
-5. The model calls `knowledge_read` with the chosen identifiers. Each returned entry is registered with the Citation Registry, producing a knowledge citation (entry id, layer, kind, state, confirmation status at the time of reading). The model cites the entry when the answer depends on it.
+5. The model calls `knowledge_read` with the chosen identifiers. Each returned discovered or learned entry is registered with the Citation Registry, producing a knowledge citation (entry id, layer, kind, state, confirmation status, and confidence label at the time of reading). Product skills and the user's own preferences are returned without a citation. An entry is cited once for a given version, state, and confirmation status; when any of them has changed since it was last cited in the conversation, a new citation is issued. The model cites the entry when the answer depends on it.
 6. The entry's last_used_at is updated.
 
 ### 5.2 State machine
@@ -164,7 +166,7 @@ stateDiagram-v2
     confirmed --> uncertain: derivation source modified, re-derivation pending or failed (discovered)
     confirmed --> uncertain: user correction on an answer that cited it
     confirmed --> uncertain: query built from it fails static analysis
-    uncertain --> confirmed: re-derived successfully
+    uncertain --> confirmed: re-derived successfully (discovered)
     uncertain --> confirmed: verified with the user or by a passing query
     uncertain --> confirmed: Learner updates the entry from the correction
     confirmed --> contested: another user disagrees
@@ -192,17 +194,19 @@ Transition rules, with triggers and who reports them. Every transition is applie
 | confirmed or uncertain | contested | A user other than the teacher objects to the entry, or teaches a conflicting meaning | Learner (assumption evaluation, live proposal, or batch) or Chat App feedback | contradiction record |
 | contested | confirmed | Resolution (section 5.6) leaves one agreed meaning | Learner | resolution record |
 | contested | uncertain | A configuration change invalidates the element the resolution relied on | Discovery, through Apply configuration changes | change set |
-| any non-retired | retired | Derivation source deleted (discovered); merged into another entry; superseded by a split; withdrawn by its teacher with no other confirmations; product skill replaced on upgrade | Discovery, Learner, or startup (product upgrade) | reason and related entry |
+| any non-retired | retired | Derivation source deleted (discovered); merged into another entry; superseded by a split; withdrawn by its teacher with no other confirmations; product skill no longer shipped after an upgrade | Discovery, Learner, or startup (product upgrade) | reason and related entry |
 
 Rules that hold in every state:
 
 - **Uncertain entries stay usable but are verified first.** When the model reads an uncertain entry, the read result marks it uncertain with the reason; the product guidance tells the model to verify it before relying on it (re-check against the current schema with `schema_describe`, or confirm with the user), and to say so in the answer.
 - **Contested entries are not used silently.** The agent asks which meaning the user intends (section 5.6).
-- **Retired is terminal.** A retired entry is never reactivated; if the knowledge becomes valid again a new entry is created, with provenance pointing to the retired one.
+- **Retired is terminal.** A retired entry is never reactivated; if the knowledge becomes valid again a new entry is created, with provenance pointing to the retired one. A retired entry stays readable by id (state retired, with its pointer to the entry it was merged into where there is one) so that earlier citations still open; the index leaves it out unless asked, and the agent does not rely on it.
 - **The teacher correcting themselves is not a contradiction.** If the user who taught an entry (or a later version) changes it, the Learner writes a new version; state stays or returns to confirmed.
 - **Confirmation status is separate from state.** A learned entry can be confirmed (valid against configuration, nobody disagrees) and still unconfirmed (only its teacher has vouched for it).
 
 ### 5.3 Re-derivation of discovery-inferred entries
+
+Only discovered entries are re-derived. Learned entries are never re-derived: when the configuration they refer to changes they become uncertain (section 5.2) and are corrected through the Learner (section 5.4).
 
 1. Discovery detects changed configuration items by modification stamp (see [Discovery](discovery.md)) and sends a change set.
 2. The Knowledge Service finds every discovered entry with a derived_from dependency on a changed item.
@@ -221,13 +225,13 @@ Learned entries that depend on a modified (not renamed or removed) element are n
 
 1. Every learned entry records refers_to dependencies for the configuration elements its meaning maps to, for example the lifecycle state a definition of "released" refers to, the property that holds a target date, or the workflow map a process name denotes.
 2. References are resolved by the Learner against config_items at write time. A reference is stored with the element's Aras id, its configuration type, its name as seen at the time, and its modification stamp.
-3. Elements below the level of a configuration item (a list value, a lifecycle state, a workflow activity, a property) are referenced as the parent configuration item plus the element's own identifier and name (Proposed; the exact granularity of config_items is defined in [discovery.md](discovery.md)).
-4. A proposal whose references cannot be resolved is not written as a shared entry. The Learner returns a rejected outcome with the unresolved names, so the model can check the schema and try again. Pure vocabulary entries that genuinely map to no configuration element (rare) are allowed only with explicit justification in the proposal and are flagged in observability (Proposed).
+3. Elements below the level of a configuration item (a list value, a lifecycle state, a workflow activity, a property) are referenced as the parent configuration item plus the element's own identifier and name (Proposed). `config_items` holds one row per configuration item, with its sub-elements inside the stored definition and not as rows of their own ([discovery.md](discovery.md), section 4), so the reference stores the parent item's `config_items` id and the element's Aras id.
+4. A proposal whose references cannot be resolved is not written as a shared entry. The Learner returns a rejected outcome with the unresolved names, so the model can check the schema and try again.
 5. On a change set, a learned entry whose referenced element was renamed or removed becomes uncertain. When the agent next uses it, it checks the current schema and either the Learner updates the reference (new version, back to confirmed, if the user confirms the renamed element still carries the meaning) or the entry is retired as corrected.
 
 ### 5.5 Validating and writing a learning proposal
 
-A proposal comes either live from the Main Agent (`record_learning`) or from a batched learning run. Every proposal carries: target layer (instance or user_preference), title, aliases, description, body, configuration references, the signal kind that motivated it, and the evidence (message ids, tool call ids).
+A proposal comes either live from the Main Agent (`record_learning`) or from a batched learning run. Every proposal carries the fields of the `record_learning` input ([tool catalog](tool-catalog.md#record_learning)): the `signal` that motivated it, `scope` (`organisation` writes to the instance layer, `personal` to the user_preference layer), `title`, `description`, `body`, the configuration elements it maps to (`config_refs`, each by element kind, name, and parent), the evidence message ids (`evidence_message_ids`), and optionally the entry it corrects (`supersedes`). The Learner resolves the references to ids and stamps (section 5.4) and derives the entry's aliases from the proposal's wording when it writes the entry.
 
 1. **Signal check.** The conversation must carry a signal (section 5.7). Live proposals with explicit teaching or correction count as their own signal. Proposals without a signal are rejected.
 2. **"How, never what" check.** Shared entries must describe meaning, configuration mapping, or query method, never business data values (no item numbers, names of specific items, counts, dates of particular records, file contents, people's names). Enforcement in MVP:
@@ -238,7 +242,7 @@ A proposal comes either live from the Main Agent (`record_learning`) or from a b
 3. **Reference resolution.** Resolve every configuration reference against config_items (section 5.4).
 4. **Merge search.** Look for a non-retired entry in the same layer (and, for preferences, the same owner) with the same title or alias, or the same primary subject reference. If found, merge (section 5.8). If not, create.
 5. **Conflict check.** If the proposal contradicts an existing entry's meaning, and the proposer is not a teacher of that entry, record a contradiction instead of overwriting (section 5.6). If the proposer is a teacher of the entry, write a new version.
-6. **Write.** Create the entry (state confirmed; confirmation status unconfirmed, or independently_confirmed in a single-user deployment), or the new version; write provenance (conversation, turn, user, signal kind), dependencies with stamps, and a state event.
+6. **Write.** Create the entry (state confirmed; confirmation status unconfirmed, or independently_confirmed when `knowledge.single_user_deployment` is set), or the new version; write provenance (conversation, turn, user, signal kind), dependencies with stamps, and a state event.
 7. **Outcome.** Return the outcome to the caller: created (id), merged (id, what changed), contradiction recorded (id), preference saved (id), or rejected (reason: no signal, contains data values, unresolved references, malformed). Live outcomes reach the model through the `record_learning` result envelope.
 
 ### 5.6 Disclosed assumptions, independent confirmation, and contested handling
@@ -302,6 +306,8 @@ Learning runs only from conversations that carry at least one signal. Signals ar
 | Empty result | Tool Gateway (mechanical) | An `aml_query` or `aml_fetch` returned zero rows in a turn; the signal is useful when a later query in the same conversation succeeded for the same intent | tool call ids |
 | Explicit teaching | Main Agent (model judgement) | The user states how something works or what a term means ("by released we mean ...", "that process is called ...") | message id |
 
+An entry that results from a signal records it as a provenance event ([knowledge_provenance](persistence.md#knowledge_provenance)): explicit teaching as `taught`, correction as `inferred_from_correction`, retried question as `inferred_from_retry`, empty result as `inferred_from_empty_result`.
+
 A query rejected by the Query Analyzer and then corrected is evidence attached to the signals above, not a signal by itself (Proposed, keeping to the four decided signals).
 
 Corrections on an answer that cited a learned entry also mark that entry uncertain immediately (section 5.2), independently of any later learning.
@@ -346,12 +352,12 @@ flowchart LR
 ### 5.10 Product skills
 
 1. Product skills ship as files with the product release (catalogue: [docs/skills/README.md](../skills/README.md)).
-2. At startup the Knowledge Service loads every skill as a product_skill entry, with title, description, body, and the product version. Entries for skills no longer shipped are retired with reason product_upgrade; changed skills get a new version.
+2. At startup the Knowledge Service loads every skill as a product_skill entry, with title, description, body, and the product version. A skill whose text changed gets a new version of its existing entry (the entry id is kept, so earlier references stay valid); entries for skills no longer shipped are retired with reason product_upgrade.
 3. Product skills cannot be changed by learning. A correction that concerns a product skill is recorded as a signal and surfaces in observability (it indicates a product defect), and the Learner may write an instance entry that refines the behaviour for this installation.
 
 ### 5.11 User preferences
 
-1. Preferences are written through the same proposal path with target layer user_preference, owned by the current user.
+1. Preferences are written through the same proposal path with scope `personal` (target layer user_preference), owned by the current user.
 2. They are visible only to the owner, are never shown to or used for other users, and are never promoted into shared knowledge automatically.
 3. Preferences need no confirmation flow and are never contested; a new preference about the same subject replaces the old one as a new version.
 4. A preference may reference configuration elements (for example "my default lifecycle state filter"); a rename or removal of the element makes it uncertain like a learned entry.

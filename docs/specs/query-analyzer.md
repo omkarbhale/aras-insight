@@ -1,6 +1,8 @@
 # Query Analyzer specification
 
-Status: MVP specification. Owner slice: module specifications. Related: [Tool Gateway](tool-gateway.md), [Tool catalog](tool-catalog.md), [Discovery](discovery.md), [Knowledge and learning](knowledge-and-learning.md), [Architecture overview](../architecture/overview.md), [Security and permissions](../architecture/security-and-permissions.md).
+Status: MVP specification. Related: [Tool Gateway](tool-gateway.md), [Tool catalog](tool-catalog.md), [Discovery](discovery.md), [Knowledge and learning](knowledge-and-learning.md), [Architecture overview](../architecture/overview.md), [Security and permissions](../architecture/security-and-permissions.md).
+
+Aras item type, relationship, and property names used in the examples below (for example Express ECO, Affected Item, Part, `item_number`) are typical of standard Aras releases and must be verified against the target version; the names of a real installation come from discovery.
 
 ## 1. Purpose
 
@@ -38,7 +40,7 @@ The analyzer is an internal component of the Tool Gateway. It has one operation.
 
 The **query fingerprint** is a hash of the query with literal values removed. It is used for audit grouping and repeated-rejection detection, and stored with the audit event.
 
-The **schema elements used** list contains, for each element the query referenced, its kind, name, parent, and the discovered entry id. The gateway records it with the tool call.
+The **schema elements used** list contains, for each element the query referenced, its kind, name, and parent, recorded as the configuration item id plus, for an element below the level of a configuration item (a property, list value, lifecycle state, or workflow activity), the element id. This form matches the dependencies recorded for learned entries (see [Knowledge and learning](knowledge-and-learning.md)). The gateway records the list with the tool call.
 
 ## 4. Data owned
 
@@ -70,8 +72,8 @@ Aras names below (attributes such as `select`, `maxRecords`, `pagesize`, `page`,
 |---|---|---|---|---|
 | QA-V01 | AML that is not well-formed, or whose root is not a recognisable AML request. | reject | Parse error with the position, for example "unclosed element Item at line 3". | Fix the syntax and resubmit. |
 | QA-V02 | Any action other than an allowed read action. The allowed list is a read-only allowlist (typically `get`; Proposed: also the read actions Aras uses for structure retrieval, once verified). Covers write actions (add, edit, update, delete, merge, lock, version, promote), calls of server methods by name, and any action not on the allowlist. | reject (error code `NOT_READ_ONLY`) | "Action 'edit' is not allowed; this product is read-only." | Do not retry. If the user asked for a change, explain that the product cannot make changes in Aras. |
-| QA-V03 | Item type name that is not in the discovered schema. | reject | "Unknown item type 'ECO'." Suggestions: closest item type names and labels, for example "Express ECO". | Use a suggested name, or call `schema_describe` with `search`. |
-| QA-V04 | Property used in criteria (as a child element or in a condition) that does not exist on that item type. Aras typically ignores such criteria, so the query would silently return unfiltered results. | reject | "Property 'status' does not exist on 'Part'; Aras would ignore this filter." Suggestions: closest properties, for example "state". | Replace with the right property; if none fits, call `schema_describe` for the item type. |
+| QA-V03 | Item type name that is not in the discovered schema. | reject | "Unknown item type 'ECO'." Suggestions: closest item type names and labels, for example "Express ECO". | Use a suggested name. The Main Agent may call `schema_describe` with `search`; a worker, which has no schema tool, re-reads the schema extract in its brief. |
+| QA-V04 | Property used in criteria (as a child element or in a condition) that does not exist on that item type. Aras typically ignores such criteria, so the query would silently return unfiltered results. | reject | "Property 'status' does not exist on 'Part'; Aras would ignore this filter." Suggestions: closest properties, for example "state". | Replace with the right property; if none fits, the Main Agent calls `schema_describe` for the item type and a worker re-reads the schema extract in its brief. |
 | QA-V05 | Relationship type that does not exist, or exists but whose source is a different item type than the one it is nested under. | reject | "Relationship 'Affected Item' is not defined on 'Part'; its source is 'Express ECO'." | Restructure the query from the correct source item type, or use the right relationship. |
 | QA-V06 | A property in a `select` list that does not exist on the item type. Aras typically omits it silently, so the model would read it as empty. | reject | "Select lists unknown property 'owner'." Suggestions, for example "owned_by_id". | Fix the select list. |
 | QA-V07 | A value compared with a list-typed property that is neither a value nor a label of that list. When it matches a label but not a value, the diagnostic says so. | reject | "Value 'Released' is not in list 'Part Classification'. Valid values: ..." or "'In Review' is a label; the stored value is 'in_review'." | Use a valid stored value. |
@@ -85,7 +87,7 @@ Aras names below (attributes such as `select`, `maxRecords`, `pagesize`, `page`,
 | QA-V15 | Criteria or sorting on a property that Discovery recorded as computed, federated, or populated by a server method rather than stored. Such filters may be ignored or may behave differently from stored properties. | warn | "Property 'total_cost' is computed; filtering on it may not work as expected. Consider fetching and filtering in analysis." | Remove the filter and filter the fetched results with code, or accept the warning. |
 | QA-V16 | A query on a versionable item type that does not state which generations are wanted. Whether Aras returns only current generations by default must be verified per version; the analyzer reports the ambiguity rather than assuming. | warn | "'Part' is versionable; state whether you want only current generations (is_current) or all generations." | Add the generation criterion that matches the question. |
 | QA-V17 | Criteria on an item type that Discovery recorded as having read-time server events (for example an onBeforeGet-style handler). Results may be filtered or altered by the server. | warn | "'Document' has a read-time server event; results may be filtered by server logic. Report counts as 'as returned by Aras'." | Proceed; mention it in coverage when counting. |
-| QA-V18 | A query that references a schema element whose discovered definition is marked as changed since the last snapshot and is still being re-read. | warn | "Schema for 'Express ECO' is being refreshed; names were checked against the previous snapshot." | Proceed; re-check with `schema_describe` if the query is rejected by Aras. |
+| QA-V18 | A query that references a schema element whose discovered definition is marked as changed since the last snapshot and is still being re-read. | warn | "Schema for 'Express ECO' is being refreshed; names were checked against the previous snapshot." | Proceed; if the query is rejected by Aras, the Main Agent re-checks with `schema_describe` and a worker re-reads the schema extract in its brief. |
 
 ### 5.4 Cost rules
 

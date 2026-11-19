@@ -54,9 +54,9 @@ The Main Agent proceeds and states the choice once in the answer's assumptions:
 Using "{{term}}" to mean {{chosen_meaning}}, as you chose.
 ````
 
-If the user describes a third meaning, the Main Agent uses it, states it the same way, and reports it with `record_learning`; the Learner adds it to the contested entry.
+If the user describes a third meaning, the Main Agent uses it and states it the same way.
 
-The Main Agent reports the user's choice with `record_learning` so the Learner can record it. Choosing does not resolve the disagreement for the organisation; the entry stays contested until a later teaching or a configuration change settles it.
+The Main Agent does not report the user's choice with `record_learning`: the product records the user's choice, and any third meaning they describe, on the contested entry (see [Main Agent](../specs/main-agent.md#57-contested-knowledge)). Choosing does not resolve the disagreement for the organisation; the entry stays contested until a later teaching or a configuration change settles it.
 
 ## Open questions
 

@@ -7,7 +7,7 @@
 | When | Always |
 | Related | [reporting-coverage-and-assumptions](reporting-coverage-and-assumptions.md), [composing-the-final-answer](composing-the-final-answer.md) |
 
-**Why this skill exists.** Business questions are often phrased causally: "which components caused the delays", "why are we seeing recurring revisions". The data in a PLM system can show which things occur together, and documents can record what people believed the cause was. It almost never proves causation. Causal honesty is a standing product rule: the agent answers the question the data can answer, says so, and reports documented explanations as documented, not as established fact.
+**Why this skill exists.** Business questions are often phrased causally: "which components caused the delays", "why does this part keep being revised". The data in a PLM system can show which things occur together, and documents can record what people believed the cause was. It almost never proves causation. Causal honesty is a standing product rule: the agent answers the question the data can answer, says so, and reports documented explanations as documented, not as established fact.
 
 The text below is the skill as the agent receives it.
 

@@ -103,7 +103,7 @@ These items are out of the MVP; each would add to or change prompts when it arri
 
 Each prompt file lists its own open questions. Those that affect the whole set:
 
-1. Proposed: the `[cite:<id>]` in-text citation syntax, to be aligned with the [Chat App](../specs/chat-app.md) and [tool catalog](../specs/tool-catalog.md).
-2. Proposed: "independently confirmed" as an attribute of confirmed learned entries rather than a fifth state, to be aligned with [knowledge and learning](../specs/knowledge-and-learning.md).
-3. Proposed: the Analysis Worker receives a schema extract and knowledge entries chosen by the Main Agent instead of having knowledge or schema tools, to be aligned with [Analysis Worker and Sandbox](../specs/analysis-worker-and-sandbox.md).
+1. Proposed: the `[cite:<id>]` in-text citation syntax, which must match the [Chat App](../specs/chat-app.md) and [tool catalog](../specs/tool-catalog.md).
+2. Proposed: "independently confirmed" as an attribute of confirmed learned entries rather than a fifth state, which must match [knowledge and learning](../specs/knowledge-and-learning.md).
+3. Proposed: the Analysis Worker receives a schema extract and knowledge entries chosen by the Main Agent instead of having knowledge or schema tools, which must match [Analysis Worker and Sandbox](../specs/analysis-worker-and-sandbox.md).
 4. Proposed: the Learner outputs knowledge operations that the Knowledge Service validates and applies, rather than calling write tools.

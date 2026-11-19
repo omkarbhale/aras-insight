@@ -1,6 +1,6 @@
 # Chat App specification
 
-Status: MVP specification. Owner slice: module specifications. Related: [Main Agent](main-agent.md), [Tool Gateway](tool-gateway.md), [Background Jobs](background-jobs.md), [Knowledge and learning](knowledge-and-learning.md), [Audit and progress](audit-and-progress.md), [Persistence](persistence.md), [Security and permissions](../architecture/security-and-permissions.md), [Personas and use cases](../product/personas-and-use-cases.md).
+Status: MVP specification. Related: [Main Agent](main-agent.md), [Tool Gateway](tool-gateway.md), [Background Jobs](background-jobs.md), [Knowledge and learning](knowledge-and-learning.md), [Audit and progress](audit-and-progress.md), [Persistence](persistence.md), [Security and permissions](../architecture/security-and-permissions.md), [Personas and use cases](../product/personas-and-use-cases.md).
 
 ## 1. Purpose
 
@@ -137,7 +137,7 @@ Users sign in with their Aras identity; Aras Insight has no user store of its ow
 | Record | Item type label, keyed name, and the property values the answer relied on when the citation carries them | Opens the item in Aras in a new tab using the link supplied by the Citation Registry. |
 | File | File name, locator (page, sheet and cell range, slide, section, or character range), a short passage excerpt, the item it was reached through | Opens the parent item or the file in Aras in a new tab. Deep linking to a page inside the file depends on the viewer Aras offers and is not guaranteed. |
 | Citation set | The set's label (for example "change records closed late, last quarter") and its member count | Opens a paged list of the member records inside the Chat App; each member opens in Aras like a record citation. A set is a grouping of record citations, not a separate kind (see [tool-catalog.md](tool-catalog.md#35-citation-summaries)). |
-| Knowledge | Entry title, layer and kind (discovered or learned), state, confirmation status, one-line description | Opens a read-only knowledge panel in the Chat App showing the entry body and its provenance in general terms. |
+| Knowledge | Entry title, layer and kind (discovered or learned), state, confirmation status, confidence label (high, medium, or low), one-line description; an entry that has since been retired is shown as retired, without a confidence label | Opens a read-only knowledge panel in the Chat App showing the entry body and its provenance in general terms; for a retired entry that was merged into another, a pointer to that entry. |
 
 The Aras link is produced by the Citation Registry in the Tool Gateway from the configured installation address (`gateway.aras_base_url`) and the item's type and id; the app treats it as opaque. Opening a link in Aras is subject to Aras permissions as usual; the user only ever sees citations for data the agent read as that same user.
 
@@ -151,7 +151,7 @@ An ordinary clarification (missing definition before expensive analysis) shows t
 
 ### 5.6 Background job confirmation
 
-1. A job proposal arrives as a turn outcome `job_proposal` with a card showing: what the job does in one sentence (for example "Search the text of all documents attached to changes in the last two years for mentions of the term"), the scope (item types, time window, estimated number of files), the estimated duration range, that it runs as the user with the user's permissions, and that it can be cancelled.
+1. A job proposal arrives as a turn outcome `job_proposal` with a card showing: what the job does in one sentence (for example "Search the text of all documents attached to changes in the last two years for mentions of the term"), the scope (item types, time window, estimated number of candidate files), the expected duration range, that it runs as the user with the user's permissions, and that it can be cancelled.
 2. Buttons: "Run it" and "Not now". Confirming calls Confirm job; nothing runs before that call. Declining records the choice and the agent answers from what it has.
 3. A proposal expires if not confirmed within a time limit (`jobs.proposal_ttl_hours`, **Proposed default** 24 hours, owned by [background-jobs.md](background-jobs.md)); confirming an expired proposal returns JOB_NOT_CONFIRMED and the app suggests asking again.
 4. Once running, the card shows a progress bar and a "Cancel" button. A jobs view in the sidebar lists all the user's jobs.

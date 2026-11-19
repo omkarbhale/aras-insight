@@ -8,9 +8,9 @@ Answers for business leaders, IT, security, and engineering leadership evaluatin
 
 No. Simple lookups do run as a single AML query, but analytical questions are handled by Analysis Workers. A worker fetches the specific records it needs (for example change orders in a period and their affected items) into an isolated Sandbox, then computes counts, rankings, trends, and durations with Python. Every query is checked before it runs, and unbounded select-all queries are flagged as too expensive. See [question lifecycle](../architecture/question-lifecycle.md).
 
-### Can it answer analytical questions over time, such as which components are most associated with delayed changes, and what the linked reports say about them?
+### Can it answer analytical questions over time, such as which parts appear most often on change orders that finished late, and what the linked engineering reports say went wrong with them?
 
-Yes. The agent first settles what "delayed" means (asking one short question with a suggested definition, since the analysis is expensive), computes the ranking with code, then reads the reports linked to the top components and summarises the failure modes they describe, with citations. It reports association, not cause, and states its coverage. See [personas and use cases](../product/personas-and-use-cases.md).
+Yes. The agent first settles what "late" means (asking one short question with a suggested definition, since the analysis is expensive), computes the ranking with code, then reads the reports linked to the top parts and summarises the failure modes they describe, with citations. It reports association, not cause, and states its coverage. See [personas and use cases](../product/personas-and-use-cases.md).
 
 ### Without a vector index, how does it answer "why" questions when the answer is not in a metadata field?
 
@@ -34,11 +34,11 @@ Yes, within Aras. It compares the discovered workflow and lifecycle definitions 
 
 ### Does it understand our customised installation?
 
-It discovers the configuration automatically (item types, properties, relationships, lists, workflow and lifecycle maps, methods, forms) as each user, and learns what local terms and processes mean from conversations. Nothing is configured by hand per installation. See [knowledge and learning](../specs/knowledge-and-learning.md).
+It discovers the configuration automatically (item types, properties, relationships, lists, workflow and lifecycle maps, methods, forms) as each user, and learns what local terms and processes mean from conversations. No schema or data-model mapping is configured by hand per installation; deployment settings such as the Aras address, limits, and model endpoints still are. See [knowledge and learning](../specs/knowledge-and-learning.md).
 
 ### What does it learn, and can it learn something wrong?
 
-It learns how the installation works (what a term means, which property holds what, how a process runs), never business data values. It learns only from conversations with a signal: a correction, a retried question, an empty result, or explicit teaching. Every learned entry has provenance. Until someone other than the teacher confirms it, the agent states it as an assumption. A correction on an answer that used it makes it uncertain; disagreement between users makes it contested, and the agent asks which meaning is intended. Entries that depend on configuration that changes are re-derived, marked uncertain, or retired.
+It learns how the installation works (what a term means, which property holds what, how a process runs), never business data values. In the MVP this rule is enforced by the prompts and the shipped product skill, not by an automated audit; see [risks](risks.md). It learns only from conversations with a signal: a correction, a retried question, an empty result, or explicit teaching. Every learned entry has provenance. Until someone other than the teacher confirms it, the agent states it as an assumption. A correction on an answer that used it makes it uncertain; disagreement between users makes it contested, and the agent asks which meaning is intended. When the configuration changes, discovered entries that depend on it are re-derived or retired, and learned entries that depend on it are marked uncertain.
 
 ## Trust and accuracy
 
@@ -58,7 +58,7 @@ The user says so in the conversation. The correction is a learning signal: any l
 
 ### Can a user see anything they cannot already see in Aras?
 
-No. Every data access runs through the Aras server as the signed-in user, with that user's permissions. There is no service account with wider access and no administrator-granted organisation-wide view. Stored file text is re-checked through Aras each time it is used. See [security and permissions](../architecture/security-and-permissions.md).
+No. Every data access runs through the Aras server as the signed-in user, with that user's permissions. There is no service account with wider access and no administrator-granted organisation-wide view. Stored file text is re-checked through Aras each time it is used. The one residual risk is a business data value slipping into shared learned knowledge, which the MVP guards against with prompts rather than an automated audit; see [risks](risks.md). See [security and permissions](../architecture/security-and-permissions.md).
 
 ### Does any data leave our premises?
 
@@ -78,7 +78,7 @@ A Sandbox: one hardened container per user conversation, or a full virtual machi
 
 ### How do long-running background jobs authenticate?
 
-With a renewable credential for the requesting user, scoped to that job and dropped when the job ends. No privileged account is involved.
+With a renewable credential for the requesting user, scoped to that job and dropped when the job ends, where the installation's sign-in issues renewable tokens; otherwise scans run only while the user's session is live. No privileged account is involved.
 
 ### Is there an audit trail?
 
@@ -118,7 +118,7 @@ Not in the MVP. A repeated question queries Aras again, which keeps results curr
 
 ### What happens when Aras is upgraded or reconfigured?
 
-Discovery detects configuration changes and regenerates the discovered layer. Learned knowledge that depended on changed elements is re-derived, marked uncertain, or retired. Standard Aras names are never assumed; they are discovered.
+Discovery detects configuration changes and regenerates the discovered layer. Discovered knowledge that depended on changed elements is re-derived or retired, and dependent learned knowledge is marked uncertain. Business item type, property, and state names are never assumed; they are discovered.
 
 ## Business
 
@@ -140,7 +140,7 @@ Through a pilot with defined phases, acceptance questions, and success and exit 
 
 ### What is not included?
 
-Writing to Aras, OCR, email and image files, CAD geometry, caching, sources outside Aras, several Aras instances, Teams and Slack, export, saved questions and dashboards, scheduled reports, and features for developers and administrators. See [scope](../product/scope.md).
+The main exclusions are writing to Aras, OCR, email and image files, CAD geometry, caching, a history of Aras data kept by the product, an analytics path that avoids the production server, sources outside Aras, several Aras instances, Teams and Slack, an MCP interface, export, saved questions and dashboards, scheduled reports, an ROI dashboard, and features for developers and administrators. The complete list is in the [roadmap](../product/roadmap.md), and the categories are in [scope](../product/scope.md).
 
 ### Who is it for?
 

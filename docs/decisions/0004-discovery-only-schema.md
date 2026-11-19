@@ -9,7 +9,7 @@ Every Aras installation is customised: item types are added, properties renamed,
 
 ## Decision
 
-The schema is discovered only, never hand-configured per customer. Discovery reads item types, properties, relationships, lists, workflow maps, lifecycle maps, methods, and forms from Aras as the user, and maintains that knowledge automatically over time. What the configuration means to the business (for example "this process starts from a problem report, which fills fields A, B, C") is learnable instance knowledge, formed in use.
+The schema is discovered only, never hand-configured per customer. Discovery reads item types, properties, relationships, lists, workflow maps, lifecycle maps, methods, and forms from Aras as the user, and maintains that knowledge automatically over time. What the configuration means to the business (for example what "delayed" or "released" means in this installation) is learnable instance knowledge, formed in use.
 
 ## Alternatives considered
 
@@ -24,7 +24,7 @@ The schema is discovered only, never hand-configured per customer. Discovery rea
 - Installation needs no data-model work.
 - Discovery quality is critical, and the Query Analyzer validates every query against the discovered schema ([ADR 0007](0007-static-analysis-for-validity-and-cost.md)).
 - Business meaning is initially unknown and is supplied by users through definitions and corrections ([ADR 0028](0028-ask-before-expensive-analysis.md), [ADR 0020](0020-organisation-wide-learnings-with-disclosed-assumptions.md)).
-- Documentation and prompts must refer to standard Aras names only as examples to verify.
+- Standard Aras names are treated as hints to verify, not as facts, in the product's prompts and guidance.
 
 ## Related
 

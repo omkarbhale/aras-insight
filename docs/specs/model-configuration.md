@@ -1,6 +1,6 @@
 # Model Router and model configuration specification
 
-Status: MVP specification. Owner slice: module specifications. Related: [Main Agent](main-agent.md), [Analysis Worker and Sandbox](analysis-worker-and-sandbox.md), [Knowledge Service and Learner](knowledge-and-learning.md), [Discovery](discovery.md), [Persistence](persistence.md), [Deployment and operations](../architecture/deployment-and-operations.md).
+Status: MVP specification. Related: [Main Agent](main-agent.md), [Analysis Worker and Sandbox](analysis-worker-and-sandbox.md), [Knowledge Service and Learner](knowledge-and-learning.md), [Discovery](discovery.md), [Persistence](persistence.md), [Deployment and operations](../architecture/deployment-and-operations.md).
 
 ## 1. Purpose
 

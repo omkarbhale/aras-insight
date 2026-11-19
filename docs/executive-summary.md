@@ -12,11 +12,11 @@ Aras Insight is an assistant that answers plain-language questions about our Ara
 
 | Property | What it means for us |
 |---|---|
-| Permission-faithful | Every query runs through the Aras server as the signed-in user. Nobody can see anything through Aras Insight that they cannot already see in Aras. There is no service account with wider access. |
+| Permission-faithful | Every query runs through the Aras server as the signed-in user. Nobody can see anything through Aras Insight that they cannot already see in Aras. There is no service account with wider access. The one residual risk is a business data value slipping into shared learned knowledge, covered under the main risks below. |
 | Cited and verifiable | Every answer links to the Aras records, file passages, and knowledge it used, and states its coverage: how many records it looked at, what had no evidence, and what it could not read. |
 | Analytics across records and files | Numbers are computed with code over the actual data, never estimated by the model. The same answer can combine structured records with the text of linked reports. |
 | Self-hosted, our models | It runs on our infrastructure, with model endpoints we choose and can switch. No data leaves our environment unless we point it at an external model. |
-| Learns our installation | It discovers our Aras configuration automatically and learns what our terms and processes mean from use. Nothing is configured by hand per installation. |
+| Learns our installation | It discovers our Aras configuration automatically and learns what our terms and processes mean from use. No schema or data-model mapping is configured by hand per installation; deployment settings such as the Aras address, limits, and model endpoints still are. |
 | Read-only | It never creates, edits, or deletes anything in Aras. |
 
 ## What the MVP delivers
@@ -31,7 +31,7 @@ Aras Insight is an assistant that answers plain-language questions about our Ara
 
 ## What is deferred
 
-Writing to Aras, OCR for scanned documents, email and image files, CAD geometry, result caching, an analytics path that avoids the production server, sources outside Aras, chat integrations such as Teams or Slack, export, saved questions and dashboards, scheduled reports, and an ROI dashboard. Each deferred item, the reason, and the trigger for revisiting it are in the [roadmap](product/roadmap.md).
+The main deferrals are writing to Aras, OCR for scanned documents, email and image files, CAD geometry, result caching, a history of Aras data kept by the product, an analytics path that avoids the production server, sources outside Aras, chat integrations such as Teams or Slack, export, saved questions and dashboards, scheduled reports, and an ROI dashboard. The [roadmap](product/roadmap.md) lists every deferral, with the reason and the trigger for revisiting each product-level item.
 
 ## Main risks
 
@@ -39,7 +39,7 @@ Writing to Aras, OCR for scanned documents, email and image files, CAD geometry,
 |---|---|
 | Wrong or invented answers | Citations on every claim, numbers computed by code, query checking against the real schema, coverage reporting, and an explicit rule against claiming causation. |
 | Load on the production Aras server | Static cost analysis of every query, throttling, row budgets, timeouts, and background jobs that run batched and throttled. |
-| Data exposure | Access only as the signed-in user, an isolated Sandbox with no network, and self-hosting. Learned knowledge holds no business data values. |
+| Data exposure | Access only as the signed-in user, an isolated Sandbox with no network, and self-hosting. Learned knowledge is designed to hold no business data values: the MVP enforces this through prompts, and automated checks are on the roadmap. |
 | Model quality varies | Three model slots (main agent, analysis worker, background work) are configured separately, so the strongest model can be used where it matters, and a pilot measures quality on the actual models. |
 | Scanned documents are unreadable in the MVP | They are reported in coverage, so answers state the gap instead of hiding it. OCR is on the roadmap. |
 
@@ -51,6 +51,7 @@ The full register is in [risks](business/risks.md).
 - A server or virtual machine able to run containers, and a PostgreSQL database.
 - Access to one or more model endpoints the company approves (internal or a private cloud deployment).
 - Security review of the deployment and of the data flow.
+- A one-time registration of Aras Insight as a sign-in client by an Aras administrator (no administrator account is used at run time), and a check of the Aras version's sign-in behaviour.
 - Ten to twenty pilot users across several roles, each with their normal Aras account, and a few hours of their time.
 - An agreed set of acceptance questions and success criteria.
 

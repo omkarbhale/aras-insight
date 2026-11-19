@@ -27,9 +27,9 @@ This wording makes that confirmation informed. The user must understand what wil
 | `{{found_so_far}}` | Main Agent | One sentence on what the metadata search found, with citations, or that it found nothing |
 | `{{search_description}}` | Main Agent | What the scan will look for, in the user's terms |
 | `{{file_scope}}` | `start_background_job` proposal | Which files will be searched, for example "files attached to documents of these types, created since a date" |
-| `{{file_count}}` | `start_background_job` proposal | Number of candidate files the user can access |
-| `{{already_extracted}}` | `start_background_job` proposal | How many of those already have extracted text stored, and so will be fast |
-| `{{duration_estimate}}` | `start_background_job` proposal | Estimated duration, if the tool returned one |
+| `{{file_count}}` | `start_background_job` proposal (`estimate.candidate_files`) | Number of candidate files the user can access |
+| `{{already_extracted}}` | `start_background_job` proposal (`estimate.cached_files`) | How many of those already have extracted text stored, and so will be fast |
+| `{{duration_estimate}}` | `start_background_job` proposal (`estimate.expected_duration`) | Estimated duration, if the tool returned one |
 | `{{format_note}}` | Main Agent | Which files in scope cannot be read in this release (scanned documents, images, email files, other formats) and will be listed in coverage, if the proposal reports any |
 | `{{alternative}}` | Main Agent | After a cancellation: one sentence offering a cheaper option, or empty |
 | `{{files_read}}` | Background job state | After a cancellation while running: files read before the job stopped |
@@ -80,5 +80,5 @@ followed by the partial answer, composed as usual, with coverage stating exactly
 
 ## Open questions
 
-1. Proposed: the confirmation is a normal assistant message with Confirm and Cancel controls rendered by the Chat App, rather than a separate dialog. To be aligned with the [Chat App](../specs/chat-app.md).
-2. Proposed: when no duration estimate is available, the "How long" line says "This may take a while" instead of a number. The estimation method belongs to [background jobs](../specs/background-jobs.md).
+1. Proposed: the confirmation is a normal assistant message with Confirm and Cancel controls rendered by the Chat App, rather than a separate dialog. Must match the [Chat App](../specs/chat-app.md).
+2. Proposed: when no duration estimate is available, the "How long" line says "This may take a while" instead of a number. The estimation method is specified in [background jobs](../specs/background-jobs.md).

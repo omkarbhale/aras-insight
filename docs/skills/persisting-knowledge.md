@@ -7,7 +7,7 @@
 | When | Always |
 | Related | [Learner prompt](../prompts/learner.md), [knowledge and learning](../specs/knowledge-and-learning.md), [uncertain-and-contested-knowledge](uncertain-and-contested-knowledge.md), aras-knowledge-mapping (domain skill, see the [catalog](README.md)) |
 
-**Why this skill exists.** Instance knowledge is what makes the product better at one customer's Aras over time without anyone configuring it: what "delayed" means here, which property the teams actually use for a target date, how the markup process is really run. The same mechanism could fill shared knowledge with business data, personal information, noise, and duplicates. This skill is the strong initial instruction that keeps learned knowledge useful and clean: learn how, never what; learn only from conversations that carry a signal; merge rather than append; and put each thing in the right layer.
+**Why this skill exists.** Instance knowledge is what makes the product better at one customer's Aras over time without anyone configuring it: what "delayed" means here, which property the teams actually use for a target date, how the design review process is really run. The same mechanism could fill shared knowledge with business data, personal information, noise, and duplicates. This skill is the strong initial instruction that keeps learned knowledge useful and clean: learn how, never what; learn only from conversations that carry a signal; merge rather than append; and put each thing in the right layer.
 
 Scheduled automated checks for data values in learned knowledge are deferred; until they exist, this skill and the [Learner prompt](../prompts/learner.md) are the control.
 
@@ -26,8 +26,8 @@ A learned entry describes **how** to find or interpret information. It never rec
 Allowed (how):
 
 - What a term means, as a rule over configuration: "In this organisation, a 'delayed' change order is one whose Released date is later than its target date property."
-- Which configuration element a phrase refers to: "'The markup process' refers to the workflow map used by the document review item type."
-- How a process is used in practice: "Teams skip the second review activity for minor document changes; the workflow allows it through an optional path."
+- Which configuration element a phrase refers to: "'The design review process' refers to the workflow map used by the document review item type."
+- How a process is run, stated in terms of its configuration: "The second review activity is optional for document change types; the workflow has a path that skips it."
 - Where an explanation is usually recorded: "Root causes for this item type are recorded in the linked analysis document, in a section headed Root Cause."
 - Which of two similar properties the organisation relies on.
 
@@ -64,7 +64,7 @@ Persist knowledge only when the conversation contains at least one of these sign
 3. **Empty result.** A query returned nothing, and a different mapping then found the records. The learning is the mapping that worked.
 4. **Explicit teaching.** The user stated how something works or what a term means, or answered a clarifying question with a definition.
 
-A conversation without a signal produces no learning, however long or interesting it is. Successful answers that used existing knowledge are not new learnings; at most they are confirmations (see below).
+A conversation without a signal produces no learning, however long or interesting it is. Successful answers that used existing knowledge are not new learnings; at most they are confirmations, which the product records itself (see Provenance and confirmation below).
 
 ### Merge rather than append
 
@@ -80,7 +80,7 @@ One term or one configuration element should have one entry. Many near-duplicate
 
 ### Map every entry to configuration
 
-Every learned entry lists the configuration elements it depends on (item types, properties, list values, lifecycle states, workflow activities), each by its stable id and current modification stamp. This is what lets the product mark the entry uncertain when one of them is renamed or removed. An entry that cannot be mapped to any configuration element is usually data or opinion; reconsider it.
+Every learned entry lists the configuration elements it depends on (item types, properties, list values, lifecycle states, workflow activities). The proposal names each element by its `element_kind` and `name`, plus its `parent` where it has one (for example the item type that owns a property), and `record_learning` requires at least one. The Learner resolves each element against the discovered schema and records its stable id and current modification stamp; the proposer does not pass ids or stamps. This is what lets the product mark the entry uncertain when one of them is renamed or removed. An entry that cannot be mapped to any configuration element is usually data or opinion; reconsider it.
 
 ### Provenance and confirmation
 
@@ -91,6 +91,8 @@ Every entry records which conversation it came from and who taught it.
 - After one independent confirmation, the entry is used without announcement.
 - In a single-user deployment, the teacher's word is enough.
 
+The product, not the Main Agent, judges whether a reply confirms or objects: the Learner evaluates the user's next message against the assumptions the answer disclosed.
+
 ### Writing the entry
 
 - A one-line description that a model can match against a question: name the term or element and the context.
@@ -99,13 +101,21 @@ Every entry records which conversation it came from and who taught it.
 
 ### For the Main Agent: when to call record_learning
 
+`record_learning` carries one thing: a proposal for a learned entry or a user preference. Every call names the signal that justifies it, one of `correction`, `retried_question`, `empty_result`, or `explicit_teaching`; a call without one is rejected.
+
 Call `record_learning` during the conversation when:
 
-- The user corrects you, teaches you, or answers a clarifying question with a definition.
-- A query returned nothing and a different mapping worked.
-- The user objects to an assumption that came from a learned entry (this makes the entry contested).
-- A different user carried on without objection after you stated an unconfirmed entry as an assumption (this is a confirmation).
-- A query built from a learned entry failed Query Analyzer validation (this makes the entry uncertain).
-- You verified an uncertain entry against the current schema and it still holds (this returns it to confirmed).
+- The user corrects you (`correction`).
+- The user rephrased or re-asked because your first answer missed, and a later attempt succeeded (`retried_question`).
+- A query returned nothing and a different mapping worked (`empty_result`).
+- The user teaches you how something works, or answers a clarifying question with a definition (`explicit_teaching`).
 
-Pass the how, in configuration terms, and the ids of any entries involved. Never pass data values. The Learner decides whether and how to write; you do not need to tell the user each time, but if the user explicitly taught you something, acknowledge briefly that it will be remembered for the organisation.
+Do not use it to report anything else. The product handles these without a call from you:
+
+- The Learner evaluates the user's next message against the assumptions your answer disclosed: carrying on without objecting is a confirmation, and an objection makes the entry contested.
+- When a query built from a learned entry fails Query Analyzer validation, the Tool Gateway reports it and the Knowledge Service marks the entry uncertain.
+- The user's choice between contested meanings is recorded by the product.
+
+Do not use `record_learning` to report that you checked an uncertain entry against the current schema; state the entry as an assumption in your answer instead.
+
+Pass the how, in configuration terms: a title, a one-line description, the body, and the configuration elements it refers to, each by element kind, name, and parent where it has one. Do not pass ids or modification stamps for those elements; the Learner resolves them. If the proposal corrects an existing entry, pass that entry's id as `supersedes`. Never pass data values. The Learner decides whether and how to write; you do not need to tell the user each time, but if the user explicitly taught you something, acknowledge briefly that it will be remembered for the organisation.

@@ -1,8 +1,10 @@
 # Tool catalog specification
 
-Status: MVP specification. Owner slice: module specifications. Related: [Main Agent](main-agent.md), [Analysis Worker and Sandbox](analysis-worker-and-sandbox.md), [Tool Gateway](tool-gateway.md), [Query Analyzer](query-analyzer.md), [File Service](file-service.md), [Knowledge and learning](knowledge-and-learning.md), [Background Jobs](background-jobs.md), [Prompts](../prompts/README.md), [Skills](../skills/README.md).
+Status: MVP specification. Related: [Main Agent](main-agent.md), [Analysis Worker and Sandbox](analysis-worker-and-sandbox.md), [Tool Gateway](tool-gateway.md), [Query Analyzer](query-analyzer.md), [File Service](file-service.md), [Knowledge and learning](knowledge-and-learning.md), [Background Jobs](background-jobs.md), [Prompts](../prompts/README.md), [Skills](../skills/README.md).
 
 This document is the single definition of every tool the agents can call. Prompts and skills refer to these tools by the exact names used here. Every other specification that mentions a tool defers to this document for its inputs, outputs, and errors.
+
+Aras item type, relationship, and property names used in the examples below (for example Express ECO, Affected Item, Part, `item_number`) are typical of standard Aras releases and must be verified against the target version; the names of a real installation come from discovery.
 
 ## 1. Purpose
 
@@ -22,7 +24,7 @@ The catalog is responsible for:
 
 - the exact tool names, argument fields, result fields, and error codes;
 - the shared result envelope and diagnostic shape;
-- the rule that a tool result that contains Aras data, file text, or knowledge always carries citation ids issued by the Citation Registry.
+- the rule that a tool result that contains Aras data, file text, or discovered or learned knowledge always carries citation ids issued by the Citation Registry.
 
 The catalog is not responsible for:
 
@@ -37,7 +39,7 @@ The catalog is not responsible for:
 
 | Tool | Main Agent | Analysis Worker | Owning module | Touches Aras |
 |---|---|---|---|---|
-| `schema_describe` | yes | no | [Knowledge Service](knowledge-and-learning.md), fed by [Discovery](discovery.md) | no (reads the discovered layer) |
+| `schema_describe` | yes | no | [Knowledge Service](knowledge-and-learning.md), from [Discovery](discovery.md)'s stored configuration | no (reads the discovered layer) |
 | `knowledge_index` | yes | no | [Knowledge Service](knowledge-and-learning.md) | no |
 | `knowledge_read` | yes | no | [Knowledge Service](knowledge-and-learning.md) | no |
 | `aml_query` | yes | no | [Tool Gateway](tool-gateway.md) | yes, as the user |
@@ -132,10 +134,13 @@ Every `citations` list contains summaries with these fields. The full record liv
 | `entry_id` | string | Knowledge only: the knowledge entry id, prefix `kn_`. |
 | `state` | string | Knowledge only: `confirmed`, `uncertain`, `contested`, or `retired` at the time of citing. |
 | `confirmation` | string | Learned knowledge only: `unconfirmed` or `independently_confirmed`. |
+| `confidence` | string | Knowledge only: `high`, `medium`, or `low`, computed at the time of citing from the entry's layer, kind, derivation method, state, and confirmation, as defined in [Knowledge and learning](knowledge-and-learning.md#41-knowledge-entry-schema). |
 
-**Citation sets.** A computed number over many records (for example "412 change records closed late") cannot reasonably list every record. Each `aml_fetch` call therefore also registers one citation set, id prefix `cst_`, that groups the record citations of every row it wrote; the Analysis Worker may register a narrower set over the rows its code selected through `submit_report`. A set is cited exactly like a citation, `[cite:cst_0007]`, and the Chat App opens it as a list of its member records, each opening in Aras. A set is a grouping of `record` citations, not a fourth citation kind.
+**Knowledge citations.** `knowledge_read` and `schema_describe` both issue knowledge citations. A citation is registered for discovered and learned entries; none is registered for product skills or for the user's own preferences. The same entry is cited once for a given version, state, and confirmation; when any of them has changed since it was last cited in the conversation, a new citation id is issued.
 
-**How the model uses citations.** In its final answer the model writes a marker `[cite:<citation id>]` directly after each statement that depends on a source, for example `[cite:cit_0042]`. Only ids that appear in a tool result in the same conversation are valid. The Main Agent validates every marker before the answer is shown (see [Main Agent](main-agent.md)); the Chat App turns valid markers into links that open the record or file in Aras, or the knowledge entry in the product (see [Chat App](chat-app.md)).
+**Citation sets.** A computed number over many records (for example "412 change records closed late") cannot reasonably list every record. Each `aml_fetch` call therefore also registers one citation set, id prefix `cst_`, that groups the record citations of every row it wrote; the Analysis Worker may register a narrower set over the rows its code selected through `submit_report`. A set is cited exactly like a citation, `[cite:cst_Wd81pT4z]`, and the Chat App opens it as a list of its member records, each opening in Aras. A set is a grouping of `record` citations, not a fourth citation kind. Ids are opaque; the examples in this document are illustrative.
+
+**How the model uses citations.** In its final answer the model writes a marker `[cite:<citation id>]` directly after each statement that depends on a source, for example `[cite:cit_Xk29fQm3]`. Only ids that appear in a tool result in the same conversation are valid. The Main Agent validates every marker before the answer is shown (see [Main Agent](main-agent.md)); the Chat App turns valid markers into links that open the record or file in Aras, or the knowledge entry in the product (see [Chat App](chat-app.md)).
 
 ## 4. Tool definitions
 
@@ -143,7 +148,7 @@ Each entry lists purpose, caller, inputs, outputs, tool-specific errors, limits,
 
 ### `schema_describe`
 
-**Purpose.** Return the discovered schema for item types and the configuration around them, so the model writes AML against what actually exists in this installation rather than against assumptions. Serves item types, properties, relationship types, lists, workflow maps, and lifecycle maps from the discovered layer kept by [Discovery](discovery.md).
+**Purpose.** Return the discovered schema for item types and the configuration around them, so the model writes AML against what actually exists in this installation rather than against assumptions. Serves item types, properties, relationship types, lists, workflow maps, and lifecycle maps through the Knowledge Service, from the configuration that [Discovery](discovery.md) has stored.
 
 **Used by.** Main Agent.
 
@@ -205,7 +210,7 @@ Each entry lists purpose, caller, inputs, outputs, tool-specific errors, limits,
 
 ### `knowledge_read`
 
-**Purpose.** Load the full text of knowledge entries so the model can apply them, and obtain citation ids for them.
+**Purpose.** Load the full text of knowledge entries so the model can apply them, and obtain citation ids for the discovered and learned ones.
 
 **Used by.** Main Agent.
 
@@ -213,14 +218,14 @@ Each entry lists purpose, caller, inputs, outputs, tool-specific errors, limits,
 
 | Field | Type | Required | Meaning |
 |---|---|---|---|
-| `ids` | list of strings | yes (1 to `knowledge.read_max_entries`, Proposed 10) | Knowledge entry ids from `knowledge_index`. |
+| `ids` | list of strings | yes (1 to `knowledge.read_max_entries`, Proposed 10) | Knowledge entry ids (prefix `kn_`) from `knowledge_index`. Product skills are entries too: a skill's name is its entry `title`, and its `kn_` id is what is passed here. |
 
 **Outputs (`result`).**
 
 | Field | Type | Meaning |
 |---|---|---|
-| `entries` | list | Each element: `id`, `layer`, `kind`, `title`, `description`, `body`, `state`, `confirmation`, `usage_note`, `provenance` (summary: taught in which conversation and when, or derived from which configuration items; teacher identity is shown as a display name only when the reader is allowed to see it, see [Knowledge and learning](knowledge-and-learning.md)), `config_dependencies` (element names with their recorded modification stamps), `open_contradictions` (count), `updated_at`. |
-| `missing` | list of strings | Ids that do not exist, are retired, or belong to another user's preferences. |
+| `entries` | list | Each element: `id`, `layer`, `kind`, `title`, `description`, `body`, `state`, `confidence` (`high`, `medium`, or `low`, as for `knowledge_index`), `confirmation`, `uncertain_reason` (when `state` is `uncertain`: why), `merged_into` (when `state` is `retired` and the entry was merged into another: the id of that entry), `usage_note`, `provenance` (summary: taught in which conversation and when, or derived from which configuration items; teacher identity is shown as a display name only when the reader is allowed to see it, see [Knowledge and learning](knowledge-and-learning.md)), `config_dependencies` (element names with their recorded modification stamps), `open_contradictions` (count), `updated_at`. |
+| `missing` | list of strings | Ids that do not exist or belong to another user's preferences. Retired entries are not missing: they are returned with `state` `retired` and, where one exists, `merged_into`. |
 
 `usage_note` tells the model how it must use the entry:
 
@@ -230,12 +235,13 @@ Each entry lists purpose, caller, inputs, outputs, tool-specific errors, limits,
 | `confirmed` but `unconfirmed` (only the teacher has vouched for it) | Use, cite, and state it to the user as an explicit assumption. |
 | `uncertain` | Usable, but verify first: re-check against the schema, or ask the user to confirm. |
 | `contested` | Do not pick a meaning; ask the user which meaning they intend, listing the competing meanings in the body. |
+| `retired` | Do not apply it; if `merged_into` names an entry, read that entry instead. |
 
 **Tool-specific errors.** `INVALID_INPUT`. Missing ids are reported in `missing`, not as an error.
 
 **Limits.** Up to `knowledge.read_max_entries` entries per call (Proposed 10); total body text capped at `tools.max_result_chars` (60,000 characters), with later entries omitted and listed in `missing` with reason `size`. **Proposed.**
 
-**Citations.** One `knowledge` citation per returned entry, recording the state and confirmation at the time of reading. When an answer cites a learned entry and the user then corrects the answer, the Main Agent reports the correction and the Knowledge Service marks that entry uncertain; when a query built from a cited learned entry fails static analysis, the Tool Gateway reports it and the Knowledge Service marks the entry uncertain. All state transitions are performed by the Knowledge Service (see [Knowledge and learning](knowledge-and-learning.md)).
+**Citations.** One `knowledge` citation per returned discovered or learned entry, recording the state, confirmation, and confidence at the time of reading; no citation is registered for product skills or for the user's own preferences. When an answer cites a learned entry and the user then corrects the answer, the Main Agent reports the correction and the Knowledge Service marks that entry uncertain; when a query built from a cited learned entry fails static analysis, the Tool Gateway reports it and the Knowledge Service marks the entry uncertain. All state transitions are performed by the Knowledge Service (see [Knowledge and learning](knowledge-and-learning.md)).
 
 ### `aml_query`
 
@@ -302,7 +308,7 @@ Each entry lists purpose, caller, inputs, outputs, tool-specific errors, limits,
 
 ### `start_analysis`
 
-**Purpose.** Hand a bounded piece of heavy work (aggregation, trends, process questions, many records, many files) to an Analysis Worker with its own Sandbox, and receive its report. Several calls in the same model step run in parallel for multi-part questions.
+**Purpose.** Hand a bounded piece of heavy work (aggregation, trends, process questions, many records, many files) to an Analysis Worker, which works in the conversation's Sandbox, and receive its report. Several calls in the same model step run in parallel for multi-part questions.
 
 **Used by.** Main Agent.
 
@@ -320,14 +326,14 @@ Each entry lists purpose, caller, inputs, outputs, tool-specific errors, limits,
 | `expected_output` | object | yes | `findings_shape` (for example "ranked table of top 5 components with counts"), `numbers` (list of the figures to compute), and `max_findings`. |
 | `budget` | object | no | A share of the remaining question budget: `queries`, `rows`, `bytes`, `wall_seconds`. Defaults to an even split of the remainder among the workers started in the same step. |
 
-**Outputs (`result`).** The worker's accepted report (`report`, with the fields defined for [`submit_report`](#submit_report) plus usage), and:
+**Outputs (`result`).** The worker's accepted report (`report`, with the fields defined for [`submit_report`](#submit_report) plus usage). The worker does not submit a citation list: the handler derives the report's citation list from the citation ids used in the report, and returns it as the envelope's `citations`. The result also carries:
 
 | Field | Type | Meaning |
 |---|---|---|
 | `job_id` | string | Analysis job id, prefix `anj_`. |
 | `status` | `completed`, `failed`, `cancelled`, or `budget_exhausted` | The analysis job's status; the report's own `status` (`complete`, `partial`, `failed`) says how complete the answer is. |
 | `steps_used` | integer | Model steps the worker used. |
-| `usage` | object | Queries, rows, bytes, and wall time the worker consumed. |
+| `usage` | object | What the worker consumed in total, with the budget keys `queries`, `rows`, `bytes`, and `wall_seconds`. This is the worker's own total, distinct from the envelope's `usage`, which describes the `start_analysis` call itself. |
 
 **Tool-specific errors.** `INVALID_INPUT` (missing objective or scope), `BUDGET_EXHAUSTED` (no budget left to give), `SANDBOX_UNAVAILABLE`, `INTERNAL`. Calls beyond `analysis.max_parallel_workers` in one turn are not refused: the extra jobs queue and start when a worker slot frees.
 
@@ -375,7 +381,7 @@ The tool returns immediately after the proposal is recorded. The user's decision
 
 ### `record_learning`
 
-**Purpose.** Propose a learned knowledge entry during the conversation (live learning): a definition, a process meaning, a mapping from business vocabulary to configuration, or a working technique for this installation. Learned knowledge describes how the installation is used, never what its data contains.
+**Purpose.** Propose a learned knowledge entry during the conversation (live learning): a definition, a process meaning, a mapping from business vocabulary to configuration, or a working technique for this installation. Learned knowledge describes how the installation is used, never what its data contains. The tool carries only learning proposals. It is not used to report confirmations, objections, verifications, or analyzer failures for existing entries: the Learner evaluates the user's next message for confirmation or objection, and the Tool Gateway and the Knowledge Service mark entries uncertain (see [Knowledge and learning](knowledge-and-learning.md)).
 
 **Used by.** Main Agent.
 
@@ -412,7 +418,7 @@ The tool returns immediately after the proposal is recorded. The user's decision
 
 ### `aml_fetch`
 
-**Purpose.** Run read-only AML as the user and write the full result into the worker's Sandbox as a file, so it can be processed with code. Unlike `aml_query`, rows are not returned to the model; only a summary is. Handles paging automatically.
+**Purpose.** Run read-only AML as the user and write the full result into the conversation's Sandbox as a file, so it can be processed with code. Unlike `aml_query`, no rows beyond a small `sample` are returned to the model; the rest is a summary. Handles paging automatically.
 
 **Used by.** Analysis Worker.
 
@@ -440,9 +446,8 @@ The tool returns immediately after the proposal is recorded. The user's decision
 | `columns` | list | Field names and the Aras data type of each, as written. |
 | `sample` | list of objects | Up to 3 rows, so the model can see the shape. |
 | `citation_set_id` | string | Id of the citation set covering every record in the file (prefix `cst_`, see 3.5). |
-| `citation_range` | object | First and last citation id issued for the rows, in file order. |
 
-Every written item, top-level or nested, carries a `_cite` field holding the citation id the Citation Registry issued for that item, plus `_type`, `_id`, and `_keyed_name`; the full file format is defined in [Analysis Worker and Sandbox](analysis-worker-and-sandbox.md#53-how-the-tool-gateway-writes-into-the-sandbox). The Gateway also appends an entry for the file to `data/manifest.json`. Code in the Sandbox carries these ids through to computed results, so findings can cite the records they are based on.
+Every written item, top-level or nested, carries a `_cite` field holding the citation id the Citation Registry issued for that item (an item already registered in the conversation keeps its existing id), plus `_type`, `_id`, and `_keyed_name`; the full file format is defined in [Analysis Worker and Sandbox](analysis-worker-and-sandbox.md#53-how-the-tool-gateway-writes-into-the-sandbox). The Gateway also appends an entry for the file to `data/manifest.json`. Code in the Sandbox carries these ids through to computed results, so findings can cite the records they are based on.
 
 **Tool-specific errors.** As for `aml_query`, plus `PATH_INVALID`, `SANDBOX_UNAVAILABLE`.
 
@@ -469,7 +474,7 @@ Every written item, top-level or nested, carries a `_cite` field holding the cit
 | `written` | list | For each fetched file: `file_id`, `file_name`, `path` (always `data/files/<file id>.txt`), `segments_path` (`data/files/<file id>.segments.json`, listing each segment's kind, label, character offsets, no-text flag, and citation id), `segments`, `chars`, `status` (`read` or `partial`), and `reason` when partial (`no_text_layer` or `truncated`). |
 | `unreadable` | list | Files that could not be read, each with `file_id`, `file_name`, `status` (`unreadable`, `too_large`, or `failed`), and `reason` (`no_text_layer`, `encrypted`, `corrupt`, `extraction_timeout`, `extraction_failed`, or `file_too_large`). |
 | `unsupported` | list | Files in formats outside MVP, with `file_id`, `file_name`, `format`. |
-| `denied` | list | Files the access re-check refused, with `file_id` only (the name is not disclosed if Aras did not return it). |
+| `denied` | list | Files the access re-check refused or Aras reported as not found, with `file_id` only (the name is not disclosed if Aras did not return it). |
 | `manifest_updated` | boolean | True when entries for the written files were appended to `data/manifest.json`. |
 
 **Tool-specific errors.** `INVALID_INPUT`, `PATH_INVALID`, `SANDBOX_UNAVAILABLE`, `BUDGET_EXHAUSTED`, `THROTTLED`, `ARAS_UNAVAILABLE`, `ARAS_AUTH_EXPIRED`. Per-file failures do not fail the call; they appear in `unreadable`, `unsupported`, and `denied`, which the worker must carry into its coverage.
@@ -480,7 +485,7 @@ Every written item, top-level or nested, carries a `_cite` field holding the cit
 
 ### `python_run`
 
-**Purpose.** Run Python code in the worker's Sandbox to aggregate, join, rank, compute trends, mine process paths, or search fetched text.
+**Purpose.** Run Python code in the conversation's Sandbox to aggregate, join, rank, compute trends, mine process paths, or search fetched text.
 
 **Used by.** Analysis Worker.
 
@@ -490,7 +495,7 @@ Every written item, top-level or nested, carries a `_cite` field holding the cit
 |---|---|---|---|
 | `code` | string | yes | Python source to execute. |
 | `purpose` | string | yes | One sentence, recorded and shown as progress when long-running. |
-| `timeout_seconds` | integer | no (default `sandbox.python_timeout_seconds`, Proposed 120; maximum 600, Proposed) | Execution time limit. |
+| `timeout_seconds` | integer | no (default `sandbox.python_default_timeout_seconds`, Proposed 120; maximum 600, Proposed) | Execution time limit. |
 | `session` | `persistent` or `fresh` | no (default `persistent`) | `persistent` keeps interpreter state between calls within the job; `fresh` starts a clean interpreter. **Proposed.** |
 
 **Outputs (`result`).**
@@ -604,11 +609,11 @@ Usage (queries, rows, bytes, model steps, wall time) is added by the handler, no
 
 ### 5.2 Retry guidance
 
-The model may retry a call after `ANALYZER_REJECTED`, `TIMEOUT`, `RESULT_TOO_LARGE`, `SANDBOX_EXEC_FAILED`, and `INVALID_INPUT`, correcting the input. The service counts consecutive rejections of the same intent: after `tools.consecutive_rejection_hint` (Proposed 3) consecutive rejected AML calls (`aml_query` or `aml_fetch`) in a row within a turn, the next rejection's message tells the model to consult the schema with `schema_describe` or to tell the user what it could not express. **Proposed.**
+The model may retry a call after `ANALYZER_REJECTED`, `TIMEOUT`, `RESULT_TOO_LARGE`, `SANDBOX_EXEC_FAILED`, and `INVALID_INPUT`, correcting the input. The service counts consecutive rejections of the same intent: after `tools.consecutive_rejection_hint` (Proposed 3) consecutive rejected AML calls (`aml_query` or `aml_fetch`) in a row within a turn, the next rejection's message carries a hint that depends on the caller. To the Main Agent it says to consult the schema with `schema_describe`, or to tell the user what it could not express. An Analysis Worker has no `schema_describe` tool and cannot ask the user, so the hint tells it to re-read the schema extract in its brief and, if the query still cannot be expressed, to submit a `partial` report that names the failing query in `limitations`. **Proposed.**
 
 ### 5.3 Result size discipline
 
-Tools that return data to the model (`aml_query`, `file_read`, `sandbox_read`, `python_run`) are capped so the model's context stays usable. When a lookup turns out to need more data than the caps allow, the expected reaction is `start_analysis`, not repeated paging through `aml_query`.
+Tools that return data to the model (`aml_query`, `file_read`, `sandbox_read`, `python_run`) are capped so the model's context stays usable. The tools apply the caps themselves (the Tool Gateway for `aml_query`, the File Service for `file_read`); the Main Agent validates its answer against them, for example by not computing aggregates from a result marked `truncated`. When a lookup turns out to need more data than the caps allow, the expected reaction is `start_analysis`, not repeated paging through `aml_query`.
 
 ## 6. Configuration
 
@@ -617,9 +622,9 @@ Tools that return data to the model (`aml_query`, `file_read`, `sandbox_read`, `
 | `tools.max_result_chars` | integer | 60,000 (Proposed default) | Character cap for any single result returned to the model. |
 | `tools.python_run.max_timeout_seconds` | integer | 600 (Proposed default) | Maximum `timeout_seconds` a `python_run` call may request. |
 | `tools.record_learning.max_per_turn` | integer | 10 (Proposed default) | Learning proposals per turn. |
-| `tools.consecutive_rejection_hint` | integer | 3 (Proposed default) | Rejections before the schema-consult hint. |
+| `tools.consecutive_rejection_hint` | integer | 3 (Proposed default) | Rejections before the caller-specific hint (section 5.2). |
 
-Limits owned by other modules are referenced by their keys and not redefined here: `main_agent.direct_result_max_rows` ([Main Agent](main-agent.md)); `analysis.max_parallel_workers`, `analysis.worker_max_steps`, `analysis.python_output_max_chars`, `analysis.report_max_table_rows`, `analysis.report_fix_attempts`, `analysis.sample_citations_per_number`, and `sandbox.python_timeout_seconds` ([Analysis Worker and Sandbox](analysis-worker-and-sandbox.md)); `file_service.read_max_chars`, `file_service.fetch_max_files`, and `file_service.max_file_bytes` ([File Service](file-service.md)); `knowledge.index_max_lines` and `knowledge.read_max_entries` ([Knowledge and learning](knowledge-and-learning.md)); `jobs.max_proposed_per_user`, `jobs.proposal_ttl_hours`, `jobs.scan_max_files`, and `jobs.scan_snippet_chars` ([Background Jobs](background-jobs.md)); `progress.max_text_chars` and `progress.min_interval_ms` ([Audit and progress](audit-and-progress.md)); throttle and gateway keys ([Tool Gateway](tool-gateway.md)).
+Limits defined in other specifications are referenced by their keys and not redefined here: `main_agent.direct_result_max_rows` ([Main Agent](main-agent.md)); `analysis.max_parallel_workers`, `analysis.worker_max_steps`, `analysis.python_output_max_chars`, `analysis.report_max_table_rows`, `analysis.report_fix_attempts`, `analysis.sample_citations_per_number`, and `sandbox.python_default_timeout_seconds` ([Analysis Worker and Sandbox](analysis-worker-and-sandbox.md)); `file_service.read_max_chars`, `file_service.fetch_max_files`, and `file_service.max_file_bytes` ([File Service](file-service.md)); `knowledge.index_max_lines` and `knowledge.read_max_entries` ([Knowledge and learning](knowledge-and-learning.md)); `jobs.max_proposed_per_user`, `jobs.proposal_ttl_hours`, `jobs.scan_max_files`, and `jobs.scan_snippet_chars` ([Background Jobs](background-jobs.md)); `progress.max_text_chars` and `progress.min_interval_ms` ([Audit and progress](audit-and-progress.md)); throttle and gateway keys ([Tool Gateway](tool-gateway.md)).
 
 ## 7. Limits
 
@@ -633,7 +638,7 @@ The per-tool limits are listed in each entry. All limits that touch Aras also dr
 | Model invents a citation id | Citation validation in the Main Agent or `submit_report` | Statement shown with an "unverified" note if not fixed | Marker removed; model asked once to fix. |
 | Tool result exceeds caps | Size check before returning | Lookup answered partially or handed to a worker | `RESULT_TOO_LARGE` or truncation flag with a hint. |
 | Aras session expires mid-turn | `ARAS_AUTH_EXPIRED` from the gateway | The turn ends `failed` with reason `auth_expired`; after signing in again the user chooses "Continue" | A new turn resumes from the saved transcript (see [Main Agent](main-agent.md) and [Chat App](chat-app.md)). |
-| Repeated analyzer rejections | Consecutive rejection counter | The answer may say what could not be queried | Hint to consult the schema or ask the user. |
+| Repeated analyzer rejections | Consecutive rejection counter | The answer may say what could not be queried | Caller-specific hint (section 5.2): the Main Agent consults the schema or asks the user; a worker re-reads its brief's schema extract or submits a partial report. |
 | Sandbox lost during a job | `SANDBOX_UNAVAILABLE` | Worker reports partial coverage | Worker retries once in a new Sandbox, or submits a partial report. |
 
 ## 9. Security considerations
@@ -641,7 +646,7 @@ The per-tool limits are listed in each entry. All limits that touch Aras also dr
 - No tool accepts credentials, user identifiers, server URLs, or SQL from the model. Identity always comes from the session.
 - Every tool that touches Aras runs as the signed-in user, so Aras permissions apply unchanged. Nothing in the catalog lets a model see data the user could not see in Aras.
 - Read-only is enforced in the gateway (rule QA-V02 and `NOT_READ_ONLY`), not by prompting.
-- Worker tools operate only within the worker's own Sandbox; reads are confined to `data/` and the job's `work/<job id>/` area, and only the Tool Gateway writes `data/` (`PATH_INVALID`).
+- Worker tools operate only within the conversation's Sandbox; reads are confined to `data/` and the job's `work/<job id>/` area, and only the Tool Gateway writes `data/` (`PATH_INVALID`).
 - `record_learning` refuses bodies that appear to contain data values; shared knowledge is meant to hold meaning, not data.
 - Tool results are data, not instructions. Text inside Aras records and files can contain instructions written by anyone with edit rights in Aras; prompts tell the model to treat it as content only (see [Prompts](../prompts/README.md)).
 

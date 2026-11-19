@@ -25,7 +25,7 @@ A query tool may return diagnostics instead of results. Each diagnostic names a 
 
 - Read the diagnostic, then check the schema with `schema_describe` (Main Agent) or the schema extract in your brief (Analysis Worker).
 - Correct the query and retry. Never resend the same query unchanged.
-- If a knowledge entry told you to use the name that failed, the entry may be stale. Mention this in your answer or report so that it can be marked uncertain, and do not rely on the entry for the rest of the question.
+- If a knowledge entry told you to use the name that failed, the entry may be stale. Do not rely on the entry for the rest of the question, and mention in your answer or report that it may be out of date. You do not mark the entry uncertain yourself: the Tool Gateway reports the failed query and the Knowledge Service marks the entry.
 
 **Cost diagnostics** mean the query would be expensive: it selects every property, has no row limit or paging, nests too deeply, or uses a broad wildcard.
 
@@ -34,7 +34,7 @@ A query tool may return diagnostics instead of results. Each diagnostic names a 
 - Replace deep nesting with a second query over the ids from the first.
 - Narrow wildcards, or add another condition (a date range, a type, a state).
 
-Proposed: after three failed attempts at the same query, stop and report what you were trying to retrieve and the last diagnostic. Do not keep varying the query blindly.
+Proposed: after three failed attempts at the same query, stop and report what you were trying to retrieve and the last diagnostic. Do not keep varying the query blindly. After several consecutive rejected queries the next rejection may repeat this advice, and what you do then depends on who you are. The Main Agent consults the schema with `schema_describe` or tells the user what it could not express. An Analysis Worker can neither ask the user nor call `schema_describe`: it re-reads the schema extract in its brief and, if the query still cannot be written, submits a `partial` report that names the failing query in its limitations.
 
 ### Row budgets
 
@@ -44,6 +44,15 @@ Each question has a row budget. Tool results tell you how much has been used.
 - If the population exceeds the budget, narrow the scope (a shorter period, one product line) and say so, or, for the Main Agent, ask the user whether to narrow or to run a background job.
 - Never split work across extra queries, extra workers, or extra conversations to exceed a budget.
 - When the budget stops the work, report exactly what was and was not covered.
+
+### Truncated and oversized results
+
+A tool may return only part of what exists. `aml_query` marks such a result `truncated` and, where it can, gives `total_rows_reported` and a `truncation_hint`; `file_read` gives the next range to ask for. An `aml_fetch` that stopped on a limit is reported as not complete, and its manifest entry is marked truncated. When a result is too large to return at all, the tool answers `RESULT_TOO_LARGE` instead of the rows.
+
+- Do not compute a count, total, share, or ranking from a truncated result: it describes only the rows you were shown.
+- Report the truncation in coverage as "first N of M" (for example "the first 100 of 412 matching records"), or "first N" with a note that the total is unknown.
+- Narrow the request (a shorter period, another condition, fewer properties, a smaller range) or, for the Main Agent, hand the question to an Analysis Worker with `start_analysis`. A lookup that needs more than a tool may return belongs with a worker, not in repeated paging.
+- `RESULT_TOO_LARGE` means narrow the request or page through it. It is not a failure to retry unchanged. The exception is a file over the size limit (reason `file_too_large`): narrowing cannot help, so report the file as unreadable in coverage.
 
 ### Throttling
 

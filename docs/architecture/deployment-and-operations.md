@@ -10,12 +10,12 @@ Related: [architecture overview](overview.md), [security and permissions](securi
 
 | Unit | Contents | Stateful | Notes |
 | --- | --- | --- | --- |
-| Aras Insight service | Chat App (served to browsers), Main Agent, Analysis Worker loops, Tool Gateway (AML Executor, Query Analyzer, Throttle, File Service, Citation Registry), Discovery, Knowledge Service, Learner, Background Jobs, Model Router. | No (state is in the Database) | Can run as one or more instances. Holds user tokens in memory while in use. |
+| Aras Insight service | Chat App (served to browsers), Main Agent, Analysis Worker loops, Tool Gateway (AML Executor, Query Analyzer, Throttle, File Service, Citation Registry), Discovery, Knowledge Service, Learner, Background Jobs, Model Router. | No (state is in the Database) | Can run as one or more instances. Holds user tokens in memory only while a call needs them (they are stored encrypted in the Database). |
 | Sandbox host | Runs one Sandbox per active conversation: a hardened container by default, or a full virtual machine. | Ephemeral | Must allow the service to create, write files into, run code in, and destroy Sandboxes. Sandboxes have no network. |
-| Database | One PostgreSQL instance. | Yes | Sessions and transcripts, knowledge, extracted file text, job state, audit and usage records. |
+| Database | One PostgreSQL instance. | Yes | Sessions and transcripts, knowledge, extracted file text, job state, encrypted user and job credentials, audit and usage records. |
 | Product Skills | Shipped with the service and versioned with it. | Read-only | Loaded into the Knowledge Service at start-up. See [docs/skills/README.md](../skills/README.md). |
 
-What is not deployed: no agent framework runtime, no vector database, no search engine, no cache, no message broker is required by the architecture. **Proposed:** Background Jobs use the Database for job state and coordination, so no separate queue is needed in the MVP; [background-jobs.md](../specs/background-jobs.md) owns that choice.
+What is not deployed: no agent framework runtime, no vector database, no search engine, no cache, no message broker is required by the architecture. **Proposed:** Background Jobs use the Database for job state and coordination, so no separate queue is needed in the MVP; this choice is specified in [background-jobs.md](../specs/background-jobs.md).
 
 Nothing is installed on the Aras server. The product needs only a sign-in client registration in the Aras installation (see [Configuration surface](#configuration-surface)) and network reachability to the Aras server.
 
@@ -59,7 +59,7 @@ flowchart LR
 
 Service instances are stateless and can be scaled out behind the customer's reverse proxy. Sandboxes run on separate hosts in a network segment with no outbound routes, so that the no-network property is also enforced by the network. PostgreSQL can be the customer's managed or existing database platform.
 
-**Proposed:** a running question's agent loops are bound to one service instance for its duration, and resume from the saved session on another instance if that instance fails. The resume mechanism belongs to [persistence.md](../specs/persistence.md).
+**Proposed:** a running question's agent loops are bound to one service instance for its duration, and resume from the saved session on another instance if that instance fails. The resume mechanism must match [persistence.md](../specs/persistence.md).
 
 ### Option 3: VM-isolated Sandboxes
 
@@ -93,19 +93,20 @@ All configuration is deployment-level. There is no per-customer schema configura
 | Models | Worker slot | Yes | As above. May point to the same endpoint as main. |
 | Models | Background slot | Yes | As above. Often a cheaper or internal model. |
 | Sandbox | Isolation mode | Yes | Container (default) or VM. |
-| Sandbox | Resource limits | Yes | CPU, memory, disk, processes, wall-clock per run; lifetime per conversation. |
+| Sandbox | Resource limits | Yes | CPU, memory, disk, processes, wall-clock per run. |
+| Sandbox | Inactivity expiry | Yes | How long a conversation can be inactive before its Sandbox is destroyed (default 24 hours). The conversation itself stays; a returning user gets a new Sandbox on demand. |
 | Limits | Per-user concurrent queries | Yes | Throttle. |
 | Limits | System-wide concurrent queries | Yes | Throttle; protects the Aras server. |
 | Limits | Row budget per question | Yes | Throttle. |
 | Limits | Query timeout | Yes | Throttle. |
 | Limits | Parallel Analysis Workers per question | Yes | |
 | Limits | Background job batch size and rate | Yes | Throttle for scans. |
-| Limits | Cost threshold for "ask before running" | Yes | When the Main Agent must confirm before expensive analysis. |
 | Learning | Inactivity threshold for batched learning | Yes | When a quiet conversation is handed to the Learner. |
-| Discovery | Change-check interval | Yes | How often modification stamps are checked. |
+| Learning | Single-user deployment | Optional | When on, the teacher's word is enough to confirm a learned entry. |
+| Discovery | Minimum interval between change checks | Yes | Modification stamps are checked at conversation start and after sign-in, never more often than this; there is no periodic check when nobody is using the product. |
 | Files | Extractable formats | Fixed in MVP | PDFs with a text layer, Word, Excel, PowerPoint, txt, csv, html, xml. |
 | Files | Maximum file size for extraction | Yes | |
-| Retention | Transcripts, extracted text, job state, audit | Yes | See [security and permissions](security-and-permissions.md#data-at-rest). |
+| Retention | Transcripts, extracted text, job state, progress events, model-call records, audit | Yes | See [security and permissions](security-and-permissions.md#data-at-rest). |
 | Database | Connection settings | Yes | |
 | Secrets | Token encryption key, model credentials, database credentials | Yes | Supplied through the customer's secret store; the mechanism is not decided. |
 
@@ -117,10 +118,10 @@ The dominant costs are not in Aras Insight itself; they are model calls and load
 
 | Resource | Driven by | Proposed starting point (to be validated in a pilot) |
 | --- | --- | --- |
-| Service CPU and memory | Concurrent conversations; text extraction. | **Proposed:** 4 vCPU, 8 GB for a pilot of up to 25 active users. |
-| Sandbox capacity | Concurrent conversations with active Analysis Workers. | **Proposed:** 1 vCPU and 2 GB per active Sandbox, with a configured maximum number of concurrent Sandboxes. |
-| Database storage | Extracted file text (largest), transcripts, audit. | **Proposed:** start at 50 GB; extracted text is typically a small fraction of the original file sizes. Monitor growth. |
-| Aras server load | System-wide Throttle limits. | **Proposed:** start with a low system-wide concurrency (for example 4 concurrent queries) and raise it while watching Aras response times. |
+| Service CPU and memory | Concurrent conversations; text extraction. | **Proposed:** 4 vCPU, 8 GB for a pilot of up to 25 active users (the service scale). |
+| Sandbox capacity | Concurrent conversations with active Analysis Workers. | **Proposed:** 2 vCPU and 4 GB per active Sandbox (the proposed per-Sandbox limits in [analysis-worker-and-sandbox.md](../specs/analysis-worker-and-sandbox.md)), with a configured maximum number of concurrent Sandboxes. |
+| Database storage | Extracted file text (largest), transcripts, audit. | **Proposed:** start at 50 GB for a pilot of hundreds of users in total (the scale [persistence.md](../specs/persistence.md) assumes; at most 25 of them active, as above); extracted text is typically a small fraction of the original file sizes. Monitor growth. |
+| Aras server load | System-wide Throttle limits. | **Proposed:** start from the proposed default of 8 concurrent queries system-wide (see [tool-gateway.md](../specs/tool-gateway.md)) and adjust it while watching Aras response times, lowering it first if interactive users are affected. |
 | Model throughput | Questions per hour; workers per question. | Depends on the chosen endpoints and their rate limits; size with the endpoint provider. |
 
 All numbers above are proposals for a first pilot. They are not measured, and must be replaced with measurements from a real installation.
@@ -132,18 +133,18 @@ All numbers above are proposals for a first pilot. They are not measured, and mu
 - Product Skills, prompts, and the service are versioned together; an upgrade replaces all of them at once.
 - Database schema changes are applied by versioned migrations at upgrade. **Proposed:** migrations are forward-only and the upgrade procedure takes a database backup first.
 - Discovered knowledge is regenerated by Discovery if the new version changes how it is represented. Learned knowledge is preserved and migrated.
-- Sessions in progress at upgrade time can be resumed from the saved session after restart; a question that was mid-analysis is re-run from its last saved step or restarted with notice. **Proposed:** the exact resume granularity belongs to [persistence.md](../specs/persistence.md).
+- Sessions in progress at upgrade time can be resumed from the saved session after restart; a question that was mid-analysis resumes from its saved transcript, and the interrupted analysis is started again, reusing data already fetched if the Sandbox survived. **Proposed:** the exact resume granularity must match [persistence.md](../specs/persistence.md).
 
 ### Upgrading Aras, or deploying Aras configuration changes
 
 Aras Insight has no deployment hook in the MVP ([ADR 0019](../decisions/0019-invalidation-by-provenance-and-contradiction.md)). Instead:
 
-1. Discovery checks configuration modification stamps at the configured interval and on use.
+1. Discovery checks configuration modification stamps when a conversation starts or a user signs in (no more often than the minimum interval between checks) and when a query result contradicts the stored schema.
 2. When it sees a change, it re-reads the changed configuration as the user and regenerates the discovered layer.
-3. Learned entries derived from changed configuration are re-derived; entries derived from deleted configuration are retired; conversation-formed entries mapped to renamed or removed elements become uncertain.
+3. Discovered entries that were model-inferred from changed configuration are re-derived; those derived from deleted configuration are retired; Learned entries mapped to renamed or removed elements become uncertain.
 4. The Query Analyzer validates against the refreshed schema, so a query built on outdated knowledge fails analysis and is retried, and the knowledge it came from becomes uncertain.
 
-**Proposed:** an administrator can trigger an immediate discovery check from the product after an Aras upgrade or a configuration deployment, without waiting for the interval. This is a manual action, distinct from the deferred automated deployment hook.
+**Proposed:** an administrator can trigger an immediate discovery check from the product after an Aras upgrade or a configuration deployment, without waiting for the next conversation start or sign-in. This is a manual action, distinct from the deferred automated deployment hook.
 
 For an Aras version upgrade, re-run the compatibility checks below before returning the product to users.
 
@@ -169,8 +170,10 @@ For an Aras version upgrade, re-run the compatibility checks below before return
 | Data | Back up | Why |
 | --- | --- | --- |
 | Knowledge (learned and user preferences) | Yes, regularly | Learned knowledge is accumulated over time and cannot be regenerated from Aras alone. |
-| Knowledge (discovered) | Optional | Regenerated by Discovery. |
+| Knowledge (discovered) | Yes, with knowledge | Discovery can regenerate it, but entry ids are referenced by citations and contradictions, and regeneration issues new content rather than the same entry ids. |
+| Discovered configuration (`config_items`, `discovery_runs`) | Yes, with knowledge | Learned entries depend on these rows and discovered entries are derived from them. |
 | Transcripts and job state | Per customer policy | Lets users return to conversations after a restore. |
+| Credentials (user sessions and background jobs) | Not needed | They expire, so users sign in again after a restore. If the Database is backed up they are in the backup, encrypted with the deployment's key. |
 | Extracted file text | Optional | Can be regenerated from Aras by re-extraction, at the cost of Aras load. |
 | Audit and usage records | Per customer audit policy | |
 | Sandboxes | Never | Ephemeral by design. |
@@ -191,7 +194,7 @@ The product discovers everything about an installation, but it relies on a small
 | Vault access | Files can be downloaded through the Aras server with the user's token, and download respects file permissions; whether vault replicas or transfer servers change the download path. |
 | File identity | File items are immutable once checked in (new content means a new file id), as the extracted-text store assumes. |
 | Workflow and lifecycle runs | Workflow process, activity, assignment, sign-off comment, and lifecycle state-change history is available through AML with timestamps. Typical item types are Workflow Process, Activity, and Activity Assignment; verify names and availability. |
-| Change records | Typical change item types (for example Express ECO, Express ECR, Problem Report) and their affected-item relationships exist and are named as expected, if the installation uses them. Discovery does not depend on these names; the walk-throughs do. |
+| Change records | Typical change item types (for example Express ECO, Express ECR, Problem Report) and their affected-item relationships exist and are named as expected, if the installation uses them. Discovery does not depend on these names, and the walk-throughs use them only as illustrations. |
 | Full-text search features | Whether the installation has its own search engine is irrelevant to the MVP (not reused), but worth noting for the roadmap. |
 
 **Proposed:** the product ships a compatibility check that an administrator runs once against a target installation with an ordinary user account, which exercises sign-in, a paged AML read, a configuration read, a file download, and a workflow-history read, and reports what works.

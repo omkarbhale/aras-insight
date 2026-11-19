@@ -1,10 +1,10 @@
 # Analysis Worker and Sandbox specification
 
-Status: MVP specification. Owner slice: module specifications. Related: [Main Agent](main-agent.md), [Tool Gateway](tool-gateway.md), [Tool catalog](tool-catalog.md), [File Service](file-service.md), [Model configuration](model-configuration.md), [Audit and progress](audit-and-progress.md), [Persistence](persistence.md), [Question lifecycle](../architecture/question-lifecycle.md), [Security and permissions](../architecture/security-and-permissions.md)
+Status: MVP specification. Related: [Main Agent](main-agent.md), [Tool Gateway](tool-gateway.md), [Tool catalog](tool-catalog.md), [File Service](file-service.md), [Model configuration](model-configuration.md), [Audit and progress](audit-and-progress.md), [Persistence](persistence.md), [Question lifecycle](../architecture/question-lifecycle.md), [Security and permissions](../architecture/security-and-permissions.md)
 
 ## 1. Purpose
 
-Analytical questions such as "which components appear most often on delayed change orders last quarter, and what failure modes do the linked reports describe" cannot be answered from a single query result. They need many paged queries, joins across item types, date arithmetic, counting, and reading many documents. The product does not build a bespoke aggregation engine for this. Instead, an **Analysis Worker**, an agent with instructions and a Python environment, fetches the data it needs into a sealed **Sandbox**, analyses it with code, and returns a report with citations, assumptions, and coverage.
+Analytical questions such as "Which five parts appear most often on change orders that finished late last quarter, and what do the linked engineering reports say went wrong with them?" cannot be answered from a single query result. They need many paged queries, joins across item types, date arithmetic, counting, and reading many documents. The product does not build a bespoke aggregation engine for this. Instead, an **Analysis Worker**, an agent with instructions and a Python environment, fetches the data it needs into a sealed **Sandbox**, analyses it with code, and returns a report with citations, assumptions, and coverage.
 
 This split was chosen because:
 
@@ -57,7 +57,7 @@ The Main Agent starts a worker by calling `start_analysis`; its agent-facing sch
 | Objective | yes | The question or sub-question to answer, in plain language |
 | Definitions | yes (may be empty) | Agreed meanings for terms in the objective, for example what "delayed" means. Each is marked with its source: confirmed by the user in this conversation, taken from a knowledge entry (with its citation id), or a default the Main Agent proposed and stated as an assumption |
 | Scope | yes | Item types, time window, filters, and population the analysis covers, as the Main Agent understands them |
-| Schema context | yes | The discovered schema excerpts the worker needs (item types, properties, relationships, lists, workflow and lifecycle maps), copied from `schema_describe` results |
+| Schema context | yes | The discovered schema excerpts the worker needs (item types, properties, relationships, lists, workflow and lifecycle maps), taken by the Main Agent from its own `schema_describe` results; the worker has no `schema_describe` tool |
 | Knowledge context | no | Knowledge entries relevant to the job, with their citation ids, states, and whether each must be disclosed as an assumption |
 | Prior data | no | Sandbox paths of data already fetched in this conversation that the worker may reuse, with their manifest entries |
 | Expected output | yes | What the Main Agent needs back: for example a ranked table of the top N, a time series by month, a list of process deviations with counts, or passages answering "why" |
@@ -78,13 +78,13 @@ The worker ends its job by calling `submit_report`; its agent-facing schema is i
 | Findings | A list of statements. Each has: the statement; its support (citation ids, or a citation set id for statements over many records); a strength label (`counted`, `observed_in_text`, `association`, `weak_signal`); and the names of the computed numbers it relies on. Statements about causes are phrased as association unless a source states the cause, in which case that source is cited. |
 | Computed numbers | A list of named values. Each has: name; value; unit; a one-sentence description of how it was computed (population, filters, definitions applied); the Sandbox paths it was computed from; and its basis (a citation set id covering the records counted, plus up to `analysis.sample_citations_per_number` representative citation ids). |
 | Tables | Optional small result tables (at most `analysis.report_max_table_rows` rows each) with a citation id or citation set id per row |
-| Citations | Every citation id used anywhere in the report, including passage citations requested by locator (see 5.5) |
+| Citations | Every citation id used anywhere in the report, including passage citations requested by locator (see 5.5). The worker does not submit this list: the handler derives it from the ids used in the report |
 | Assumptions | Every assumption made: the assumption, why it was needed, its source (user, knowledge entry with citation id, discovery-suggested default, worker default), and whether the Main Agent should disclose it in the answer |
-| Coverage | Records: how many matched the scope among those the user can access, how many were analysed, how many lacked linked evidence. Files: requested, read, partially read, unreadable (with reasons), unsupported (with formats), too large, not available. Queries: run, truncated by limits, rejected by the Query Analyzer and not recovered |
+| Coverage | Records: how many matched the scope among those the user can access, how many were analysed, how many lacked linked evidence. Files: requested, read, partially read, unreadable (with reasons), unsupported (with formats), `too_large`, `denied` (refused by the access re-check, or not found in Aras). Queries: run, truncated by limits, rejected by the Query Analyzer and not recovered |
 | Limitations | What the analysis could not establish and why, for example "time spent in each workflow activity cannot be computed for processes whose activity timestamps are empty" |
 | Candidate learnings | Optional notes on how-to knowledge found during the job, for example "delay is best measured from the release date property, not the modified date"; never data values |
 | Artifacts | Sandbox paths of result files the Main Agent or a follow-up job may reuse |
-| Usage | Queries, rows, bytes, model steps, wall time consumed |
+| Usage | What the job consumed in total (queries, rows, bytes, wall time), added by the handler, with the model steps used reported as `steps_used`; this is the job's own total, distinct from the per-call `usage` of the tool result envelope |
 
 ### 3.3 Worker tools
 
@@ -118,9 +118,9 @@ The Sandbox controller is part of our service. It is the only component that ope
 |---|---|---|
 | `analysis_jobs` | One row per job: id, turn, conversation, Sandbox, the `start_analysis` tool call, brief, status (`queued`, `running`, `completed`, `failed`, `cancelled`, `budget_exhausted`), report, steps used, budget reference (its share in `question_budgets`), error code, timestamps | [persistence.md#analysis_jobs](persistence.md#analysis_jobs) |
 | `sandboxes` | One row per Sandbox: id, conversation, isolation (`container` or `vm`), runtime reference, status (`provisioning`, `ready`, `busy`, `expiring`, `destroyed`, `failed`), image version, disk used, created, last used, expires, destroyed timestamps | [persistence.md#sandboxes](persistence.md#sandboxes) |
-| `sandbox_files` | One row per file written into a Sandbox: Sandbox id, path, origin (`aml`, `file_text`, `python_output`), originating tool call, analysis job, format, bytes, rows, citation id range, citation set id, truncated flag, manifest entry, created timestamp | [persistence.md#sandbox_files](persistence.md#sandbox_files) |
+| `sandbox_files` | One row per file written into a Sandbox: Sandbox id, path, origin (`aml`, `file_text`, `python_output`), originating tool call, analysis job, format, bytes, rows, citation set id (AML files), truncated flag, manifest entry, created timestamp | [persistence.md#sandbox_files](persistence.md#sandbox_files) |
 
-File contents live only inside the Sandbox. The `sandbox_files` rows are metadata and are deleted when the Sandbox is destroyed; the `analysis_jobs` report is kept with the transcript. The worker's model messages and tool calls are stored in `messages` and `tool_calls`, linked to the job (see [Main Agent](main-agent.md)).
+File contents live only inside the Sandbox. The `sandbox_files` rows are metadata and are deleted when the Sandbox is destroyed; the `analysis_jobs` report is kept with the transcript. The worker loop writes the worker's model messages and tool calls to `messages` and `tool_calls`, each linked to the job (`analysis_job_id`; see [persistence.md](persistence.md#messages) and [Main Agent](main-agent.md)).
 
 ## 5. Behaviour
 
@@ -157,7 +157,7 @@ The default runtime is a hardened container, one per conversation. A full virtua
 | Inbound channel | Files are placed into the data area only by the Sandbox controller acting for the Tool Gateway. The Sandbox cannot request data; it can only be given data. |
 | Code execution | Code arrives only from the worker loop through the controller's execute operation and runs as an unprivileged user. |
 | File system | Read-only system image; writable data and working areas with a disk quota (`sandbox.disk_limit_gb`). The data area is writable only by the host side. |
-| Resources | CPU (`sandbox.cpu_limit`), memory (`sandbox.memory_limit_gb`), process count, and per-execution time (`sandbox.python_timeout_seconds`) limits. |
+| Resources | CPU (`sandbox.cpu_limit`), memory (`sandbox.memory_limit_gb`), process count, and per-execution time limits (a default of `sandbox.python_default_timeout_seconds`, which a `python_run` call may override up to a maximum of `tools.python_run.max_timeout_seconds`). |
 | Kernel surface | Restricted system calls and no privilege escalation (**Proposed:** the runtime's standard hardening profile plus a system-call filter). |
 | Packages | A fixed, pinned set of analysis libraries in the image; no package installation at run time. **Proposed** set: tabular data handling, numerics, date handling, regular expressions, and text utilities. |
 | Tenancy | One Sandbox serves one user's one conversation; Sandboxes never share writable storage. |
@@ -167,13 +167,13 @@ The default runtime is a hardened container, one per conversation. A full virtua
 1. The worker calls `aml_fetch` or `file_fetch`. The tool handler in our service forwards the request to the Tool Gateway with the user context.
 2. The Tool Gateway runs the request exactly as it would for the Main Agent: Query Analyzer, Throttle, execution as the user, paging, citation registration. See [Tool Gateway](tool-gateway.md) and [File Service](file-service.md).
 3. The Gateway hands the results to the Sandbox write channel, which writes files into the data area and appends an entry to the manifest. **Proposed:** the channel uses the container runtime's file-copy facility or a host-side volume that only the host can write, so that no network path into the Sandbox exists.
-4. The tool result returned to the worker lists the paths written, row counts, truncation, citation id range or set, and any analyzer warnings; it does not include the rows themselves.
+4. The tool result returned to the worker lists the paths written, row counts, truncation, the citation set id (for AML results), and any analyzer warnings; it includes no rows beyond a small sample (see [`aml_fetch`](tool-catalog.md#aml_fetch)).
 
 Layout of the data area (**Proposed** names):
 
 | Path | Contents |
 |---|---|
-| `data/manifest.json` | One entry per file written: path, source kind, tool call id, job id, the AML (for AML results) or file id (for file text), item type, row count, pages fetched, whether results were truncated by a limit, citation id range or citation set id, analyzer warnings, written timestamp |
+| `data/manifest.json` | One entry per file written: path, source kind, tool call id, job id, the AML (for AML results) or file id (for file text), item type, row count, pages fetched, whether results were truncated by a limit, citation set id (AML results), analyzer warnings, written timestamp |
 | `data/aml/<name>.jsonl` or `data/aml/<name>.csv` | AML results. `name` is the optional `aml_fetch` input and defaults to the tool call id. JSON Lines (the default) holds one top-level item per line; CSV flattens to one row per top-level item and omits relationship data |
 | `data/files/<file id>.txt` | Extracted text of one file, as stored by the File Service |
 | `data/files/<file id>.segments.json` | The segment map: segment number, kind, label, start and end character offsets, no-text flag, and the `file` citation id registered for that segment |
@@ -204,7 +204,7 @@ sequenceDiagram
     A-->>G: items
     G->>G: register citations
     G->>S: write data/aml file and manifest entry
-    G-->>W: paths, rows, citation range
+    G-->>W: paths, rows, citation set id
     W->>M: tool result
     M->>W: python_run(code)
     W->>S: execute
@@ -219,7 +219,7 @@ sequenceDiagram
 The worker loop runs in our service using the `worker` model slot (see [Model configuration](model-configuration.md)).
 
 1. The `start_analysis` handler validates the brief, creates the `analysis_jobs` row, ensures the Sandbox, and allocates the job's budget share from the question budget.
-2. The loop builds the worker's context: the worker system prompt, the shipped skills for AML, Sandbox data layout, analysis practice, and process questions (see [Skills](../skills/README.md)), and the brief.
+2. The loop builds the worker's context: the worker system prompt; the always-loaded shipped skills for the worker, among them `aml-authoring`, `python-analysis-in-sandbox` (which carries the Sandbox data layout and the citation fields), `citing-sources`, and `progress-reporting`; any on-demand skills the brief names, such as `workflow-and-lifecycle-analysis`; and the brief, with the manifest entries of any prior data it names (the full list of skills per agent is in the [skills catalog](../skills/README.md)).
 3. Each step, the loop calls the model; the model either calls one or more worker tools or calls `submit_report`. Plain text without a tool call is answered with a reminder that the job ends only with `submit_report`.
 4. Tool calls are executed and their results appended. Every tool call and result is stored in `tool_calls` and audited.
 5. The loop enforces the step limit, the budget share (through the Throttle), and the deadline. When `analysis.wrapup_steps` steps or `analysis.wrapup_seconds` remain, the loop tells the model to stop fetching and submit what it has. If the hard limit is reached without a report, the loop builds a report from the manifest: `partial` when anything was fetched (listing what was fetched, with coverage and no findings beyond what the files show), otherwise `failed`.
@@ -253,7 +253,8 @@ The user never sees the raw report. The Main Agent composes the answer from it, 
 | `sandbox.cpu_limit` | number | 2 (Proposed default) | CPU cores per Sandbox |
 | `sandbox.memory_limit_gb` | number | 4 (Proposed default) | Memory per Sandbox |
 | `sandbox.disk_limit_gb` | number | 10 (Proposed default) | Disk quota per Sandbox |
-| `sandbox.python_timeout_seconds` | integer | 120 (Proposed default) | Time limit for one `python_run` |
+| `sandbox.python_default_timeout_seconds` | integer | 120 (Proposed default) | Default time limit for one `python_run`, used when the call gives no `timeout_seconds` |
+| `tools.python_run.max_timeout_seconds` | integer | 600 (Proposed default) | Maximum `timeout_seconds` a `python_run` call may request (also listed in the [tool catalog](tool-catalog.md)) |
 | `sandbox.expiry_hours` | integer | 24 (Proposed default) | Conversation inactivity after which the Sandbox is destroyed |
 | `sandbox.max_active` | integer | 20 (Proposed default; size per deployment) | Maximum live Sandboxes; beyond this, provisioning waits briefly then fails with SANDBOX_UNAVAILABLE |
 | `analysis.max_parallel_workers` | integer | 4 (Proposed default) | Concurrent workers per turn |
@@ -271,6 +272,7 @@ The user never sees the raw report. The Main Agent composes the answer from it, 
 - At most `analysis.max_parallel_workers` workers per turn, each within its share of the question budget (Proposed default question budget: 200 queries, 50,000 rows, 200 MB fetched, 30 minutes wall time for the turn including workers).
 - At most `analysis.worker_max_steps` model steps per job.
 - Data volume is bounded by the question budget, not by the Sandbox: the Sandbox disk quota is set above the byte budget so that the budget is reached first.
+- The question budget has no files dimension: it counts queries, rows, bytes, and wall time. The only file-count cap is per call, `file_service.fetch_max_files` for one `file_fetch` (Proposed default 50); per-question file budgets are left to be tuned once the system runs. A cap on the number of files that a brief states is an instruction to the worker, not a system limit.
 - A Sandbox cannot obtain data outside the user's Aras permissions, because every byte arrives through the Tool Gateway as the user.
 - Analyses requiring more data than the budget allows end as `partial`; the Main Agent tells the user what was covered and may propose narrowing the question or, for full-text search across file contents, a [background job](background-jobs.md).
 
@@ -309,15 +311,15 @@ See [Security and permissions](../architecture/security-and-permissions.md) for 
 
 ## 11. MVP versus deferred
 
-| Capability | MVP | Deferred item |
+| Capability | MVP | Roadmap item |
 |---|---|---|
 | Container per conversation, VM option | Yes | |
 | Parallel workers for multi-part questions | Yes | |
 | Code-based analytics and process mining from workflow and lifecycle runs | Yes | |
-| Chart and result export | No | aras-defer-chart-export |
-| Result caching across questions or users | No | aras-defer-cache |
-| Analytics without loading the production Aras server | No | aras-defer-direct-data |
-| Saved questions and scheduled reports | No | aras-defer-saved-questions, aras-defer-scheduled-reports |
+| Chart and result export | No | [Chart and result export](../product/roadmap.md) |
+| Result caching across questions or users | No | [Answer and query result caching](../product/roadmap.md) |
+| Analytics without loading the production Aras server | No | [Analytics path that does not load production](../product/roadmap.md) |
+| Saved questions and scheduled reports | No | [Saved questions and dashboards](../product/roadmap.md), [Scheduled reports](../product/roadmap.md) |
 
 See the [Roadmap](../product/roadmap.md).
 
