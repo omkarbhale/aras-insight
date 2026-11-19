@@ -131,7 +131,7 @@ Details are in [docs/product/scope.md](docs/product/scope.md), and the plan for 
 - [0039 Audit and usage records: redacted query text by default, append-only, citation counters, no identity groups](docs/decisions/0039-audit-and-usage-records.md)
 - [0040 Operator reports through documented views and export; no administrator endpoints in the MVP](docs/decisions/0040-operator-reports-without-administrator-endpoints.md)
 - [0041 No telemetry to the makers of the product](docs/decisions/0041-no-telemetry-to-the-makers.md)
-- [0042 Assumptions are disclosed to every user until independently confirmed](docs/decisions/0042-assumption-disclosure-and-independent-confirmation.md)
+- [0042 Assumptions are disclosed to every other user until independently confirmed](docs/decisions/0042-assumption-disclosure-and-independent-confirmation.md)
 - [0043 Contested knowledge: ask once per conversation, and how a contest ends](docs/decisions/0043-contested-knowledge.md)
 - [0044 The Learner's operations, signals, and writes to Discovered entries](docs/decisions/0044-learner-operations-and-signals.md)
 - [0045 Preferences are personal and per user only](docs/decisions/0045-personal-preferences-layer.md)

@@ -13,7 +13,7 @@ Audit and usage data are read through documented database views that produce the
 
 The product ships a one-time compatibility check, run by an administrator against a target installation with an ordinary user account. It exercises sign-in, a paged AML read, a configuration read, a file download and a workflow-history read, and reports what works. The remaining checks (read-time server events, file immutability, change-record names, lock behaviour) are documented manual checks that the customer's Aras owners confirm.
 
-There is no manual discovery trigger: the check at sign-in and conversation start covers an Aras change. Only the requesting user can see, confirm, cancel or reauthorise a background job; operators lower limits or pause the job runner to protect Aras.
+There is no manual discovery trigger: the check at sign-in and conversation start covers an Aras change. Only the requesting user can see, confirm, cancel or reauthorise a background job; operators lower the concurrency limits to protect Aras.
 
 The reports and the compatibility check are operations tooling for the customer's infrastructure staff, not features for Aras administrators.
 

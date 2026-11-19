@@ -109,7 +109,6 @@ Every record opens with a Status line and a Scope line, and then has the same se
 - **Decision** - what was decided, stated so it can be checked against the implementation.
 - **Alternatives considered** - each serious alternative, and why it was rejected (or deferred).
 - **Consequences** - what the product accepts as a result, including costs.
-- **Open questions** - optional; present only in a record that leaves a question open.
 - **Related** - other records and the documents that implement the decision.
 
 New records take the next free number and the same sections. Numbers are never reused.
